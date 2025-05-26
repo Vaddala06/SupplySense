@@ -39,11 +39,10 @@ export function Header() {
     setInput("")
     setLoading(true)
     try {
-      const res = await fetch("https://api.perplexity.ai/chat/completions", {
+      const res = await fetch("/api/perplexity", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${PPLX_API_KEY}`,
         },
         body: JSON.stringify({
           model: "pplx-70b-online",
