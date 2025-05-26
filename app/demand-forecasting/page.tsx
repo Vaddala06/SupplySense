@@ -92,7 +92,6 @@ export default function DemandForecastingPage() {
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">NEXT MONTH</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">NEXT 3 MONTHS</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">TREND</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">CONFIDENCE</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">KEY FACTORS</th>
                 </tr>
               </thead>
@@ -113,17 +112,6 @@ export default function DemandForecastingPage() {
                     <td className="py-4 px-4 font-medium text-gray-900">{product.next3Months} units</td>
                     <td className="py-4 px-4">
                       <Badge className={getTrendColor(product.trend)}>{product.trend}</Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-16 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: getConfidenceWidth(product.confidence) }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">{product.confidence}%</span>
-                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-sm text-gray-600">

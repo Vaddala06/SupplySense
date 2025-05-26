@@ -1,63 +1,17 @@
+"use client"
+
+import { useState, useRef } from "react"
+import Papa from "papaparse"
 import { CardTitle } from "@/components/ui/card"
 import { CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Upload, Edit, Trash2 } from "lucide-react"
+import { Upload } from "lucide-react"
 
 export default function InventorySetupPage() {
-  const products = [
-    {
-      id: "WDG-001",
-      name: "Wireless Bluetooth Headphones",
-      category: "Electronics",
-      supplier: "TechSource Ltd",
-      unitCost: 45.0,
-      stockLevel: "150 units",
-      reorderAt: 50,
-      abcClass: "A",
-    },
-    {
-      id: "SMT-002",
-      name: "Smartphone Case - Silicone",
-      category: "Accessories",
-      supplier: "CaseMaker Inc",
-      unitCost: 8.5,
-      stockLevel: "450 units",
-      reorderAt: 100,
-      abcClass: "B",
-    },
-    {
-      id: "CHG-003",
-      name: "USB-C Fast Charger 65W",
-      category: "Electronics",
-      supplier: "PowerTech Co",
-      unitCost: 22.0,
-      stockLevel: "75 units",
-      reorderAt: 30,
-      abcClass: "A",
-    },
-    {
-      id: "SPK-004",
-      name: "Portable Bluetooth Speaker",
-      category: "Electronics",
-      supplier: "AudioMax Ltd",
-      unitCost: 35.0,
-      stockLevel: "25 units",
-      reorderAt: 40,
-      abcClass: "C",
-    },
-    {
-      id: "CAB-005",
-      name: "Lightning to USB Cable",
-      category: "Accessories",
-      supplier: "CablePro Inc",
-      unitCost: 12.0,
-      stockLevel: "200 units",
-      reorderAt: 75,
-      abcClass: "B",
-    },
-  ]
+  const [products, setProducts] = useState([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const getClassColor = (abcClass: string) => {
     switch (abcClass) {
@@ -72,11 +26,45 @@ export default function InventorySetupPage() {
     }
   }
 
+  const normalizeKey = (key: string) =>
+    key.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const csvProducts = results.data.map((row: any, idx: number) => {
+          const normalized: Record<string, any> = {}
+          Object.keys(row).forEach((k) => {
+            normalized[normalizeKey(k)] = row[k]
+          })
+          return {
+            id: normalized.ingredient || normalized.product || normalized.id || `CSV-${idx}`,
+            name: normalized.ingredient || normalized.name || "",
+            category: normalized.category || "",
+            supplier: normalized.supplier || "",
+            unitCost: parseFloat(normalized.unitcost || 0),
+            stockLevel: normalized.stocklevellbs || normalized.stocklevel || "",
+            abcClass: normalized.abcclass || "",
+          }
+        })
+        setProducts(csvProducts)
+      },
+    })
+  }
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className="space-y-8 pr-20">
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          Inventory Setup & Data Import
+          Inventory Setup
         </h1>
         <p className="text-gray-600">Upload and manage your inventory data</p>
       </div>
@@ -91,7 +79,14 @@ export default function InventorySetupPage() {
               </div>
               <h3 className="font-bold text-lg text-gray-900 mb-2">CSV Upload</h3>
               <p className="text-sm text-gray-600 mb-6">Upload inventory data from spreadsheet</p>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCSVUpload}
+                ref={fileInputRef}
+                style={{ display: "none" }}
+              />
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg" onClick={handleButtonClick}>
                 Upload CSV
               </Button>
             </CardContent>
@@ -115,7 +110,6 @@ export default function InventorySetupPage() {
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">UNIT COST</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">STOCK LEVEL</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-700">ABC CLASS</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,27 +130,10 @@ export default function InventorySetupPage() {
                     <td className="py-4 px-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">{product.stockLevel}</div>
-                        <div className="text-gray-500">Reorder at {product.reorderAt}</div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getClassColor(product.abcClass)}>Class {product.abcClass}</Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-800 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
                     </td>
                   </tr>
                 ))}
