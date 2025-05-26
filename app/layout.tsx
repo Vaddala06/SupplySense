@@ -2,15 +2,13 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Header } from "@/components/layout/header"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SupplySense - Inventory Cost Optimizer",
+  title: "SupplySense",
   description: "Advanced inventory management and cost optimization platform",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -20,15 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="flex h-screen bg-gray-50">
-          <Sidebar />
-          <div className="flex-1 flex flex-col lg:ml-64">
-            <Header />
-            <main className="flex-1 overflow-auto p-6">{children}</main>
-          </div>
-        </div>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
