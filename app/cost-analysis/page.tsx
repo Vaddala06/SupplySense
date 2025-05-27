@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Assuming these are correctly set up
-import { Badge } from "@/components/ui/badge"    // Assuming these are correctly set up
-import { Checkbox } from "@/components/ui/checkbox" // Assuming these are correctly set up
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
     DollarSign, 
     TrendingDown, 
@@ -21,14 +21,12 @@ interface Product {
   name: string;
   unitCost: number;
   shipping: number;
-  storage: number; // Storage cost per month
-  carryingCost: number; // Annual carrying cost as a percentage of unit cost
-  totalLanded: number; // Calculated: unitCost + shipping + storage + (unitCost * carryingCost / 100)
-  margin: number; // Original margin percentage (assuming it's descriptive for now)
-  turnover: number; // Inventory turnover rate (descriptive for now)
-  daysInInventory: number; // Days item stays in inventory
-
-  // Fields for tracking and displaying changes
+  storage: number; 
+  carryingCost: number; 
+  totalLanded: number;
+  margin: number; 
+  turnover: number; 
+  daysInInventory: number; 
   isChanged?: boolean;
   changeSummary?: { 
     [K in keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary' | 'margin' | 'turnover'>]?: { 
@@ -41,8 +39,8 @@ interface Product {
 
 interface PerplexityChangeDetail {
   productId: string;
-  field: keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary' | 'totalLanded' | 'margin' | 'turnover'>; // Fields AI can change
-  newValue: number | string; // AI might return number as string
+  field: keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary' | 'totalLanded' | 'margin' | 'turnover'>;
+  newValue: number | string; 
   reasoning?: string;
 }
 
@@ -51,7 +49,7 @@ interface PerplexityOptimizationOption {
   title: string;
   description: string;
   estimatedSavings: number;
-  impact: "High" | "Medium" | "Low" | "Very High"; // Ensure AI provides one of these
+  impact: "High" | "Medium" | "Low" | "Very High";
   detailedChanges: PerplexityChangeDetail[];
   category?: string; 
   webFindings?: string; 
@@ -119,7 +117,7 @@ export default function CostRecommendationsPage() {
     for (const key in iconMap) {
       if (combinedText.includes(key)) return { icon: iconMap[key], color: colorMap[key] || colorMap.default };
     }
-    if (title.toLowerCase().includes("ai") || description.toLowerCase().includes("ai")) return { icon: iconMap.ai, color: colorMap.ai };
+    if (title.toLowerCase().includes("ai") || description.toLowerCase().includes("ai")) return { icon: iconMap.ai, color: colorMap.ai }
     return { icon: iconMap.default, color: colorMap.default };
   };
 
@@ -261,7 +259,6 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             if (originalProductFieldType === 'number') {
                 parsedNewValue = parseFloat(String(change.newValue));
                 if (isNaN(parsedNewValue)) {
-                    console.warn(`Could not parse newValue '${change.newValue}' as number for field '${fieldToChange}' on product '${change.productId}'. Keeping original value from current working state.`);
                     parsedNewValue = (productToUpdate as any)[fieldToChange]; 
                 }
             }
@@ -282,21 +279,20 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
 
             let isProductChangedOverall = false;
             const displayChangeSummary: Product['changeSummary'] = {};
-            const fieldsToCheck: (keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary'>)[] = ["unitCost", "shipping", "storage", "carryingCost", "daysInInventory", "totalLanded", "margin", "turnover"]; 
+            const fieldsToCheck: (keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary'>)[] = 
+                ["unitCost", "shipping", "storage", "carryingCost", "daysInInventory", "totalLanded", "margin", "turnover"]; 
             
             fieldsToCheck.forEach(field => {
                 const originalValue = (originalProduct as any)[field];
                 const optimizedValue = (optimizedProduct as any)[field];
-
-                // Use a tolerance for floating point comparisons if necessary, e.g. for totalLanded
                 const valuesDiffer = (typeof originalValue === 'number' && typeof optimizedValue === 'number')
-                    ? Math.abs(originalValue - optimizedValue) > 1e-9 // Tolerance for float comparison
+                    ? Math.abs(originalValue - optimizedValue) > 1e-9 
                     : originalValue !== optimizedValue;
 
                 if (valuesDiffer) {
                     isProductChangedOverall = true;
                     let reasoningFromOption: string | undefined;
-                     for (const optionId of selectedOptionIds) { // Find reasoning from any selected option that made this change
+                     for (const optionId of selectedOptionIds) {
                         const opt = perplexityOptions.find(o => o.id === optionId);
                         const relevantChange = opt?.detailedChanges.find(dc => dc.productId === optimizedProduct.id && dc.field === field);
                         if (relevantChange?.reasoning) {
@@ -318,7 +314,6 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             if (!a.isChanged && b.isChanged) return 1;
             return a.id.localeCompare(b.id);
         });
-
   }, [baseInventory, selectedOptionIds, perplexityOptions]);
 
   const totalAppliedSavings = useMemo(() => {
@@ -392,6 +387,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             </div>
         )}
 
+        {/* --- STRATEGY CARDS UI - MATCHING ORIGINAL STATIC LAYOUT --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           {perplexityOptions.map((option) => {
             const { icon: Icon, color: gradColor } = assignVisuals(option.title, option.description);
@@ -399,31 +395,39 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             return (
               <Card
                 key={option.id}
-                className={`cursor-pointer transition-all duration-300 flex flex-col h-full shadow-md hover:shadow-xl ${
-                  isSelected ? "ring-2 ring-blue-500 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50 scale-[1.01]" : "bg-white hover:scale-[1.01]"
+                className={`cursor-pointer transition-all duration-300 flex flex-col h-full shadow-md hover:shadow-lg ${
+                  isSelected
+                    ? "ring-2 ring-blue-500 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50"
+                    : "bg-white hover:shadow-md" 
                 }`}
                 onClick={() => handleOptionToggle(option.id)}
               >
-                <CardContent className="p-4 flex flex-col flex-grow"> {/* Use p-4 for content */}
-                  <div className="flex items-start space-x-3"> {/* Checkbox and content side-by-side */}
+                <CardContent className="p-4 flex-grow"> {/* Using p-4 like original static example */}
+                  <div className="flex items-start space-x-3">
                     <Checkbox
                       id={`checkbox-${option.id}`}
                       checked={isSelected}
-                      className="mt-1 flex-shrink-0 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                       aria-label={`Select option ${option.title}`}
+                      className="mt-1 flex-shrink-0" // Checkbox style from original
                     />
-                    <div className="flex-1 min-w-0"> {/* Ensures text wraps */}
-                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradColor} flex items-center justify-center mb-2`}>
-                            <Icon className="h-5 w-5 text-white" />
-                        </div>
-                        <h3 className="font-semibold text-sm text-gray-800 mb-1 truncate" title={option.title}>{option.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradColor} flex items-center justify-center mb-3`}>
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-sm text-gray-900 mb-1 truncate" title={option.title}>{option.title}</h3>
+                      <p className="text-xs text-gray-600 mb-3 line-clamp-2 min-h-[2.5em]">{option.description}</p>
+                      {option.webFindings && (
+                         <p className="text-[10px] text-blue-600 italic mb-2 p-1.5 bg-blue-50/80 rounded-md line-clamp-2" title={option.webFindings}> 
+                            <Info size={11} className="inline mr-1 align-text-bottom"/>{option.webFindings} 
+                         </p>
+                       )}
+                      <div className="space-y-1 mt-auto pt-1 border-t border-gray-100"> {/* Stacked savings and impact */}
+                        <div className="text-lg font-bold text-green-600">${option.estimatedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <Badge className={`${getImpactColor(option.impact)} px-2 py-0.5 text-[10px]`} variant="secondary">
+                          {option.impact} Impact
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mb-2 flex-grow min-h-[2.5em] line-clamp-3">{option.description}</p>
-                  {option.webFindings && ( <p className="text-[10px] text-blue-600 italic mb-2 p-1.5 bg-blue-50/80 rounded-md line-clamp-2" title={option.webFindings}> <Info size={11} className="inline mr-1 align-text-bottom"/>{option.webFindings} </p> )}
-                  <div className="mt-auto pt-2 border-t border-gray-200/70 flex justify-between items-center">
-                    <div className="text-lg font-bold text-green-600">${option.estimatedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                    <Badge className={`${getImpactColor(option.impact)} px-2 py-0.5 text-[10px] font-medium`} variant="secondary"> {option.impact} Impact </Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -432,6 +436,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
         </div>
       </div>
 
+      {/* --- DETAILED COST ANALYSIS TABLE --- */}
       <Card className="shadow-xl border-0 bg-white overflow-hidden">
         <CardHeader className="bg-slate-50 border-b sticky top-0 z-10">
            <CardTitle className="text-xl text-gray-800">
@@ -442,7 +447,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-sm">
-              <thead className="sticky top-[calc(3.5rem+1px)] z-10"> {/* Ensure this top value matches CardHeader height */}
+              <thead className="sticky top-[calc(3.5rem+1px)] z-10">
                 <tr className="border-b bg-gray-100 shadow-sm">
                   {["PRODUCT", "UNIT COST", "SHIPPING", "STORAGE/MONTH", "CARRYING COST %", "TOTAL LANDED", "MARGIN %", "TURNOVER", "DAYS IN INVENTORY"].map(header => (
                      <th key={header} className="text-left py-3.5 px-4 font-semibold text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">{header}</th>
@@ -469,9 +474,9 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                           <div className={`font-medium ${product.changeSummary?.[field] ? 'text-gray-900' : 'text-gray-700'}`}>
                             ${(product[field] as number).toFixed(2)}
                             {product.changeSummary?.[field] && (
-                              <div className={`text-xs mt-0.5 ${ ((product[field] as number) < product.changeSummary[field]!.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                { ((product[field] as number) < product.changeSummary[field]!.originalValue) ? '↓' : '↑' } 
-                                ${(Math.abs(product.changeSummary[field]!.originalValue - (product[field] as number))).toFixed(2)}
+                              <div className={`text-xs mt-0.5 ${ ((product[field] as number) < (product.changeSummary[field]!.originalValue as number)) ? 'text-green-600' : 'text-red-500' }`}>
+                                { ((product[field] as number) < (product.changeSummary[field]!.originalValue as number)) ? '↓' : '↑' } 
+                                ${(Math.abs((product.changeSummary[field]!.originalValue as number) - (product[field] as number))).toFixed(2)}
                                 {product.changeSummary[field]?.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary[field]?.reasoning}>({product.changeSummary[field]?.reasoning})</span>}
                               </div>
                             )}
@@ -482,9 +487,9 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                         <div className={`font-medium ${product.changeSummary?.carryingCost ? 'text-gray-900' : 'text-gray-700'}`}>
                             {(product.carryingCost as number).toFixed(0)}%
                             {product.changeSummary?.carryingCost && (
-                                <div className={`text-xs mt-0.5 ${ ((product.carryingCost as number) < product.changeSummary.carryingCost.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                    { ((product.carryingCost as number) < product.changeSummary.carryingCost.originalValue) ? '↓' : '↑' } 
-                                    {Math.abs(product.changeSummary.carryingCost.originalValue - (product.carryingCost as number)).toFixed(0)}%
+                                <div className={`text-xs mt-0.5 ${ ((product.carryingCost as number) < (product.changeSummary.carryingCost.originalValue as number)) ? 'text-green-600' : 'text-red-500' }`}>
+                                    { ((product.carryingCost as number) < (product.changeSummary.carryingCost.originalValue as number)) ? '↓' : '↑' } 
+                                    {Math.abs((product.changeSummary.carryingCost.originalValue as number) - (product.carryingCost as number)).toFixed(0)}%
                                     {product.changeSummary.carryingCost.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary.carryingCost.reasoning}>({product.changeSummary.carryingCost.reasoning})</span>}
                                 </div>
                             )}
@@ -494,8 +499,8 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                         <div className={`font-bold ${product.changeSummary?.totalLanded ? 'text-blue-700' : 'text-gray-800'}`}>
                             ${product.totalLanded.toFixed(2)}
                             {product.changeSummary?.totalLanded && (
-                                <div className={`text-xs mt-0.5 font-semibold ${product.totalLanded < product.changeSummary.totalLanded.originalValue ? 'text-green-600' : 'text-red-500'}`}>
-                                    {product.totalLanded < product.changeSummary.totalLanded.originalValue ? '↓ SAVED' : '↑ COST'}: ${(Math.abs(product.changeSummary.totalLanded.originalValue - product.totalLanded)).toFixed(2)}
+                                <div className={`text-xs mt-0.5 font-semibold ${product.totalLanded < (product.changeSummary.totalLanded.originalValue as number) ? 'text-green-600' : 'text-red-500'}`}>
+                                    {product.totalLanded < (product.changeSummary.totalLanded.originalValue as number) ? '↓ SAVED' : '↑ COST'}: ${(Math.abs((product.changeSummary.totalLanded.originalValue as number) - product.totalLanded)).toFixed(2)}
                                 </div>
                             )}
                         </div>
@@ -506,9 +511,9 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                          <div className={`${(product.daysInInventory as number) > 100 ? "text-rose-600 font-medium" : "text-gray-700"} ${product.changeSummary?.daysInInventory ? 'font-semibold' : ''}`}>
                             {Math.round(product.daysInInventory as number)} days
                             {product.changeSummary?.daysInInventory && (
-                                 <div className={`text-xs mt-0.5 ${ ((product.daysInInventory as number) < product.changeSummary.daysInInventory.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                    { ((product.daysInInventory as number) < product.changeSummary.daysInInventory.originalValue) ? '↓' : '↑' } 
-                                    {Math.round(Math.abs(product.changeSummary.daysInInventory.originalValue - (product.daysInInventory as number)))} days
+                                 <div className={`text-xs mt-0.5 ${ ((product.daysInInventory as number) < (product.changeSummary.daysInInventory.originalValue as number)) ? 'text-green-600' : 'text-red-500' }`}>
+                                    { ((product.daysInInventory as number) < (product.changeSummary.daysInInventory.originalValue as number)) ? '↓' : '↑' } 
+                                    {Math.round(Math.abs((product.changeSummary.daysInInventory.originalValue as number) - (product.daysInInventory as number)))} days
                                     {product.changeSummary.daysInInventory.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary.daysInInventory.reasoning}>({product.changeSummary.daysInInventory.reasoning})</span>}
                                 </div>
                             )}
