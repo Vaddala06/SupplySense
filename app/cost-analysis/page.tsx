@@ -12,7 +12,8 @@ import {
     Zap, 
     AlertTriangle, 
     Info, 
-    BrainCircuit 
+    BrainCircuit,
+    Link as LinkIcon 
 } from "lucide-react"
 
 // --- TypeScript Interfaces ---
@@ -93,39 +94,19 @@ export default function CostRecommendationsPage() {
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
   const [isLoadingPerplexity, setIsLoadingPerplexity] = useState<boolean>(true);
   const [perplexityError, setPerplexityError] = useState<string | null>(null);
+  const [apiCitations, setApiCitations] = useState<string[]>([]);
 
-  const iconMap: { [key: string]: React.ElementType } = {
-    supplier: Package, consolidation: Package, vendor: Package,
-    eoq: TrendingDown, quantity: TrendingDown, optimization: TrendingDown, turnover: TrendingDown,
-    jit: Zap, "just-in-time": Zap,
-    shipping: Truck, logistics: Truck, route: Truck, freight: Truck,
-    purchasing: DollarSign, bulk: DollarSign, negotiation: DollarSign, discount: DollarSign,
-    tariff: AlertTriangle, regulation: AlertTriangle,
-    storage: Package, warehouse: Package, holding: Package,
-    ai: BrainCircuit, default: Info,
-  };
-  const colorMap: { [key: string]: string } = {
-    supplier: "from-green-500 to-emerald-600", eoq: "from-blue-500 to-cyan-600",
-    jit: "from-purple-500 to-violet-600", shipping: "from-orange-500 to-red-600",
-    purchasing: "from-indigo-500 to-blue-600", tariff: "from-red-400 to-pink-500",
-    storage: "from-teal-500 to-cyan-600", ai: "from-sky-500 to-indigo-600",
-    default: "from-gray-500 to-slate-600",
-  };
-
-  const assignVisuals = (title: string = "", description: string = ""): { icon: React.ElementType; color: string } => {
-    const combinedText = `${title.toLowerCase()} ${description.toLowerCase()}`;
-    for (const key in iconMap) {
-      if (combinedText.includes(key)) return { icon: iconMap[key], color: colorMap[key] || colorMap.default };
-    }
-    if (title.toLowerCase().includes("ai") || description.toLowerCase().includes("ai")) return { icon: iconMap.ai, color: colorMap.ai }
-    return { icon: iconMap.default, color: colorMap.default };
-  };
+  const tagColors = [ // For numbered tags
+    "bg-blue-600", "bg-emerald-600", "bg-indigo-600", "bg-rose-600", "bg-amber-600",
+    "bg-sky-600", "bg-lime-600", "bg-fuchsia-600", "bg-red-600", "bg-teal-600"
+  ];
 
   useEffect(() => {
     if (baseInventory && baseInventory.length > 0) {
       const fetchOptions = async () => {
         setIsLoadingPerplexity(true);
         setPerplexityError(null);
+        setApiCitations([]); 
         try {
           const systemPrompt = `You are an expert inventory cost optimization AI. Analyze the provided inventory data. Your goal is to identify 3 to 5 distinct and actionable cost-saving strategies. For each strategy, you MUST provide:
 1.  A unique "id" string (e.g., "switch-supplier-wdg001", "consolidate-shipments-electronics").
@@ -140,25 +121,7 @@ export default function CostRecommendationsPage() {
     d.  "reasoning": A brief (max 15 words) justification for this specific change.
 7.  (Optional) A "webFindings" string (max 50 words) summarizing any web research for cheaper options, tariffs, or regulations relevant to this strategy.
 
-IMPORTANT: Your entire response MUST be a single, valid JSON array of these strategy objects. Do not include any introductory text, explanations, or markdown formatting outside the JSON array itself.
-Example of one strategy object in the array:
-{
-  "id": "alt-supplier-wdg001",
-  "title": "Alternate Supplier for WDG-001",
-  "description": "Source Wireless Bluetooth Headphones from Supplier B for reduced unit cost.",
-  "estimatedSavings": 225.00,
-  "impact": "Medium",
-  "detailedChanges": [
-    {
-      "productId": "WDG-001",
-      "field": "unitCost",
-      "newValue": 40.50,
-      "reasoning": "Supplier B offers 10% lower price."
-    }
-  ],
-  "webFindings": "Supplier B (supplierB.com) has positive reviews and lower rates for WDG-001."
-}`;
-
+IMPORTANT: Your entire response MUST be a single, valid JSON array of these strategy objects. Do not include any introductory text, explanations, or markdown formatting outside the JSON array itself.`;
           const userPrompt = `Here is the current inventory data:
 ${JSON.stringify(baseInventory.map(({ id, name, unitCost, shipping, storage, carryingCost, daysInInventory, turnover }) => ({ id, name, unitCost, shipping, storage, carryingCost, daysInInventory, turnover })), null, 2)}
 
@@ -169,57 +132,43 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
           const response = await fetch("/api/perplexity", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "sonar-pro", 
-              messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userPrompt } ],
-            }),
+            body: JSON.stringify({ model: "sonar-pro", messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userPrompt } ] }),
           });
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: { message: "Failed to parse error response from /api/perplexity" } }));
-            console.error("Error response from /api/perplexity:", errorData);
-            const perplexityErrorMessage = errorData.error?.message || (errorData.details && errorData.details.error?.message) || `API request failed with status ${response.status}`;
-            throw new Error(perplexityErrorMessage);
+            const errorData = await response.json().catch(() => ({ error: { message: "Failed to parse error response" } }));
+            throw new Error( errorData.error?.message || `API request failed: ${response.status}` );
           }
 
           const result = await response.json();
           let strategies: PerplexityOptimizationOption[] = [];
 
-          if (result && result.choices && result.choices.length > 0 && result.choices[0].message && result.choices[0].message.content) {
+          if (result?.citations && Array.isArray(result.citations)) {
+            setApiCitations(result.citations.filter((c: any) => typeof c === 'string'));
+          }
+
+          if (result?.choices?.[0]?.message?.content) {
             const contentString = result.choices[0].message.content;
             try {
               strategies = JSON.parse(contentString);
-              if (!Array.isArray(strategies)) {
-                throw new Error("Parsed content not an array.");
-              }
+              if (!Array.isArray(strategies)) throw new Error("Parsed content not an array.");
             } catch (e: any) {
-              console.error("Initial JSON.parse failed:", e.message, "Content:", contentString.substring(0,500));
               const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
-              if (jsonMatch && jsonMatch[1]) {
-                  try {
-                      strategies = JSON.parse(jsonMatch[1]);
-                      if (!Array.isArray(strategies)) {
-                          throw new Error("Extracted content not an array.");
-                      }
-                  } catch (e2: any) {
-                      throw new Error(`Invalid JSON after code block extraction: ${e2.message}`);
-                  }
-              } else {
-                  throw new Error(`Content not valid JSON and no code block found: ${e.message}`);
-              }
+              if (jsonMatch?.[1]) {
+                  try { strategies = JSON.parse(jsonMatch[1]);
+                      if (!Array.isArray(strategies)) throw new Error("Extracted content not an array.");
+                  } catch (e2: any) { throw new Error(`Invalid JSON after code block extraction: ${e2.message}`); }
+              } else { throw new Error(`Content not valid JSON: ${e.message}`); }
             }
           } else {
             throw new Error("Incomplete/malformed data from Perplexity AI.");
           }
           
           const validatedStrategies = strategies.filter(s => s && s.id && s.title && Array.isArray(s.detailedChanges) && s.impact);
-          if (validatedStrategies.length !== strategies.length) {
-             console.warn("Some strategies were filtered: missing fields. Original:", strategies.length, "Validated:", validatedStrategies.length);
-          }
           setPerplexityOptions(validatedStrategies.map(s => ({...s, impact: s.impact || "Medium", detailedChanges: Array.isArray(s.detailedChanges) ? s.detailedChanges : [] })));
 
         } catch (err: any) {
-          console.error("Error in fetchOptions (useEffect):", err);
+          console.error("Error fetching Perplexity options:", err);
           setPerplexityError(err.message || "Unknown error fetching suggestions.");
         } finally {
           setIsLoadingPerplexity(false);
@@ -238,10 +187,9 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
   };
 
   const optimizedDisplayProducts = useMemo((): Product[] => {
-    let workingInventory: Product[] = JSON.parse(JSON.stringify(baseInventory));
-
+    let workingInventory: Product[] = JSON.parse(JSON.stringify(baseInventory)); 
     if (selectedOptionIds.length === 0) {
-      return workingInventory.map(p => ({ ...p, isChanged: false, changeSummary: {} }));
+      return baseInventory.map(p => ({ ...p, isChanged: false, changeSummary: {} }));
     }
 
     selectedOptionIds.forEach((optionId) => {
@@ -252,15 +200,12 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
           if (productIndex !== -1) {
             const productToUpdate = workingInventory[productIndex];
             const fieldToChange = change.field;
-            
             let parsedNewValue = change.newValue;
             const originalProductFieldType = typeof (baseInventory.find(p=>p.id === change.productId) as any)?.[fieldToChange];
 
             if (originalProductFieldType === 'number') {
                 parsedNewValue = parseFloat(String(change.newValue));
-                if (isNaN(parsedNewValue)) {
-                    parsedNewValue = (productToUpdate as any)[fieldToChange]; 
-                }
+                if (isNaN(parsedNewValue)) parsedNewValue = (productToUpdate as any)[fieldToChange]; 
             }
             (productToUpdate as any)[fieldToChange] = parsedNewValue;
 
@@ -275,12 +220,10 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
     return workingInventory
         .map(optimizedProduct => {
             const originalProduct = baseInventory.find(op => op.id === optimizedProduct.id);
-            if (!originalProduct) return optimizedProduct; 
-
+            if (!originalProduct) return { ...optimizedProduct, isChanged: false, changeSummary: {} }; 
             let isProductChangedOverall = false;
             const displayChangeSummary: Product['changeSummary'] = {};
-            const fieldsToCheck: (keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary'>)[] = 
-                ["unitCost", "shipping", "storage", "carryingCost", "daysInInventory", "totalLanded", "margin", "turnover"]; 
+            const fieldsToCheck: (keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary'>)[] = ["unitCost", "shipping", "storage", "carryingCost", "daysInInventory", "totalLanded", "margin", "turnover"]; 
             
             fieldsToCheck.forEach(field => {
                 const originalValue = (originalProduct as any)[field];
@@ -295,16 +238,9 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                      for (const optionId of selectedOptionIds) {
                         const opt = perplexityOptions.find(o => o.id === optionId);
                         const relevantChange = opt?.detailedChanges.find(dc => dc.productId === optimizedProduct.id && dc.field === field);
-                        if (relevantChange?.reasoning) {
-                            reasoningFromOption = relevantChange.reasoning; 
-                            break; 
-                        }
+                        if (relevantChange?.reasoning) { reasoningFromOption = relevantChange.reasoning; break; }
                     }
-                    displayChangeSummary[field] = {
-                        originalValue: originalValue,
-                        newValue: optimizedValue,
-                        reasoning: reasoningFromOption
-                    };
+                    displayChangeSummary[field] = { originalValue, newValue: optimizedValue, reasoning: reasoningFromOption };
                 }
             });
             return { ...optimizedProduct, isChanged: isProductChangedOverall, changeSummary: displayChangeSummary };
@@ -332,11 +268,11 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
       default: return "bg-gray-100 text-gray-800";
     }
   };
-
+  
   // --- RENDER SECTION ---
   if (isLoadingPerplexity && perplexityOptions.length === 0 && !perplexityError) {
     return (
-      <div className="space-y-8 pr-20">
+      <div className="space-y-8 pr-20 pb-20">
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             AI-Powered Cost Recommendations
@@ -361,11 +297,12 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
         <p className="text-gray-600">Select AI-generated optimization strategies to see potential cost savings on your inventory.</p>
       </div>
 
+      {/* Potential Optimization Strategies Section */}
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Potential Optimization Strategies</h2>
           {selectedOptionIds.length > 0 && (
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
+             <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
               <span className="text-sm font-medium">Total Selected Savings: </span>
               <span className="text-lg font-bold">${totalAppliedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
@@ -387,41 +324,33 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             </div>
         )}
 
-        {/* --- STRATEGY CARDS UI - MATCHING ORIGINAL STATIC LAYOUT --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-          {perplexityOptions.map((option) => {
-            const { icon: Icon, color: gradColor } = assignVisuals(option.title, option.description);
+          {perplexityOptions.map((option, index) => {
+            const tagBgColor = tagColors[index % tagColors.length];
             const isSelected = selectedOptionIds.includes(option.id);
             return (
               <Card
                 key={option.id}
                 className={`cursor-pointer transition-all duration-300 flex flex-col h-full shadow-md hover:shadow-lg ${
-                  isSelected
-                    ? "ring-2 ring-blue-500 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50"
-                    : "bg-white hover:shadow-md" 
+                  isSelected ? "ring-2 ring-blue-500 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50" : "bg-white hover:shadow-md" 
                 }`}
                 onClick={() => handleOptionToggle(option.id)}
               >
-                <CardContent className="p-4 flex-grow"> {/* Using p-4 like original static example */}
+                <CardContent className="p-4 flex-grow">
                   <div className="flex items-start space-x-3">
                     <Checkbox
                       id={`checkbox-${option.id}`}
                       checked={isSelected}
                       aria-label={`Select option ${option.title}`}
-                      className="mt-1 flex-shrink-0" // Checkbox style from original
+                      className="mt-1 flex-shrink-0 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600" // Ensure consistent checkbox style
                     />
                     <div className="flex-1 min-w-0">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradColor} flex items-center justify-center mb-3`}>
-                        <Icon className="h-5 w-5 text-white" />
+                      <div className={`w-10 h-10 rounded-md ${tagBgColor} flex items-center justify-center mb-3 text-white font-bold text-lg shadow-sm`}>
+                        {index + 1}
                       </div>
                       <h3 className="font-semibold text-sm text-gray-900 mb-1 truncate" title={option.title}>{option.title}</h3>
-                      <p className="text-xs text-gray-600 mb-3 line-clamp-2 min-h-[2.5em]">{option.description}</p>
-                      {option.webFindings && (
-                         <p className="text-[10px] text-blue-600 italic mb-2 p-1.5 bg-blue-50/80 rounded-md line-clamp-2" title={option.webFindings}> 
-                            <Info size={11} className="inline mr-1 align-text-bottom"/>{option.webFindings} 
-                         </p>
-                       )}
-                      <div className="space-y-1 mt-auto pt-1 border-t border-gray-100"> {/* Stacked savings and impact */}
+                      <p className="text-xs text-gray-600 mb-3 line-clamp-3 min-h-[40px]">{option.description}</p>
+                      <div className="space-y-1.5 mt-auto pt-2">
                         <div className="text-lg font-bold text-green-600">${option.estimatedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                         <Badge className={`${getImpactColor(option.impact)} px-2 py-0.5 text-[10px]`} variant="secondary">
                           {option.impact} Impact
@@ -436,7 +365,59 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
         </div>
       </div>
 
-      {/* --- DETAILED COST ANALYSIS TABLE --- */}
+      {/* --- NEW: AI Insights Section --- */}
+      {selectedOptionIds.length > 0 && (
+        <Card className="shadow-lg border bg-white mb-8">
+          <CardHeader className="bg-slate-100 border-b rounded-t-lg">
+            <CardTitle className="text-xl text-gray-800 flex items-center">
+              <BrainCircuit size={22} className="mr-2.5 text-blue-600" />
+              AI Insights for Selected Strategies
+            </CardTitle>
+            <p className="text-sm text-gray-500 mt-1">Detailed rationale and findings from Perplexity AI for your chosen optimizations.</p>
+          </CardHeader>
+          <CardContent className="p-6 space-y-5">
+            {selectedOptionIds.map(optionId => {
+              const option = perplexityOptions.find(opt => opt.id === optionId);
+              if (!option) return null;
+              const optionIndex = perplexityOptions.findIndex(o => o.id === optionId);
+              const tagBgColor = tagColors[optionIndex % tagColors.length];
+              return (
+                <div key={`insight-${option.id}`} className="p-4 border border-gray-200 rounded-lg bg-slate-50/60 shadow-sm">
+                   <div className={`mb-3 p-2 py-1.5 rounded-md inline-flex items-center text-white ${tagBgColor}`}>
+                     <span className="font-semibold text-xs mr-2">STRATEGY {optionIndex + 1}:</span>
+                     <h3 className="font-medium text-sm">{option.title}</h3>
+                   </div>
+                  {option.webFindings && (
+                    <div className="mb-2.5">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1 tracking-wide">Key Web Findings:</h4>
+                      <p className="text-sm text-gray-700 italic bg-blue-50 p-2.5 rounded border border-blue-100">{option.webFindings}</p>
+                    </div>
+                  )}
+                  {option.detailedChanges.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1.5 tracking-wide">Rationale for Specific Changes:</h4>
+                      <ul className="space-y-1.5">
+                        {option.detailedChanges.map((change, idx) => (
+                          <li key={`${option.id}-change-${idx}`} className="text-sm text-gray-700 bg-white p-2 border border-gray-200 rounded">
+                            Product <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0.5">{change.productId}</Badge>: 
+                            Change <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0.5">{change.field}</Badge> to <Badge className="font-mono text-xs px-1.5 py-0.5 bg-green-100 text-green-700 border-green-200">{String(change.newValue)}</Badge>.
+                            {change.reasoning && <span className="italic text-gray-500 text-xs block mt-0.5">↳ Reasoning: "{change.reasoning}"</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                   {(!option.webFindings && option.detailedChanges.filter(c => c.reasoning).length === 0) && (
+                     <p className="text-sm text-gray-500 italic">No specific web findings or detailed rationale provided by AI for this strategy's general description.</p>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detailed Cost Analysis Table */}
       <Card className="shadow-xl border-0 bg-white overflow-hidden">
         <CardHeader className="bg-slate-50 border-b sticky top-0 z-10">
            <CardTitle className="text-xl text-gray-800">
@@ -448,23 +429,18 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-sm">
               <thead className="sticky top-[calc(3.5rem+1px)] z-10">
-                <tr className="border-b bg-gray-100 shadow-sm">
+                <tr className="border-b bg-gray-100 shadow-sm">{/* Ensure no whitespace here */}
                   {["PRODUCT", "UNIT COST", "SHIPPING", "STORAGE/MONTH", "CARRYING COST %", "TOTAL LANDED", "MARGIN %", "TURNOVER", "DAYS IN INVENTORY"].map(header => (
                      <th key={header} className="text-left py-3.5 px-4 font-semibold text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">{header}</th>
                   ))}
-                </tr>
+                </tr>{/* Ensure no whitespace here */}
               </thead>
               <tbody>
                 {optimizedDisplayProducts.length === 0 && !isLoadingPerplexity && (
                     <tr><td colSpan={9} className="text-center py-10 text-gray-500">No inventory data to display.</td></tr>
                 )}
                 {optimizedDisplayProducts.map((product) => (
-                    <tr
-                      key={product.id}
-                      className={`border-b transition-colors duration-150 ${
-                        product.isChanged ? "bg-yellow-50 hover:bg-yellow-100/70" : "hover:bg-slate-50/70"
-                      }`}
-                    >
+                    <tr key={product.id} className={`border-b transition-colors duration-150 ${ product.isChanged ? "bg-yellow-50 hover:bg-yellow-100/70" : "hover:bg-slate-50/70" }`} >
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-gray-800">{product.id}</div>
                         <div className="text-xs text-gray-500 max-w-[150px] truncate" title={product.name}>{product.name}</div>
@@ -526,6 +502,35 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
           </div>
         </CardContent>
       </Card>
+
+      {/* --- NEW: Sources Section --- */}
+      {apiCitations.length > 0 && (
+        <Card className="shadow-lg border-0 bg-slate-50/70 mt-10">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-700 flex items-center">
+              <LinkIcon size={18} className="mr-2 text-slate-500"/> Data Sources & Citations
+            </CardTitle>
+             <p className="text-xs text-slate-500">Sources provided by Perplexity AI that may have informed its analysis and findings.</p>
+          </CardHeader>
+          <CardContent className="p-4 text-xs">
+            <ul className="list-disc list-inside space-y-1.5 pl-2">
+              {apiCitations.map((url, index) => (
+                <li key={`citation-${index}`}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline break-all"
+                  >
+                    {url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-gray-500 italic">Note: These sources are provided by the AI and may have been used to form its general knowledge or specific findings related to the suggestions.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
