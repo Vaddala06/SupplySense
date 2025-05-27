@@ -45,7 +45,7 @@ export function Header() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "pplx-70b-online",
+          model: "sonar",
           messages: [...messages, userMessage].map(m => ({role: m.role, content: m.content})),
         }),
       })
