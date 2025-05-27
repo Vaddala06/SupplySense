@@ -1,12 +1,21 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { DollarSign, TrendingDown, Package, Truck, Zap, AlertTriangle, Info, BrainCircuit } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Assuming these are correctly set up
+import { Badge } from "@/components/ui/badge"    // Assuming these are correctly set up
+import { Checkbox } from "@/components/ui/checkbox" // Assuming these are correctly set up
+import { 
+    DollarSign, 
+    TrendingDown, 
+    Package, 
+    Truck, 
+    Zap, 
+    AlertTriangle, 
+    Info, 
+    BrainCircuit 
+} from "lucide-react"
 
-// --- Interfaces ---
+// --- TypeScript Interfaces ---
 interface Product {
   id: string;
   name: string;
@@ -14,19 +23,26 @@ interface Product {
   shipping: number;
   storage: number; // Storage cost per month
   carryingCost: number; // Annual carrying cost as a percentage of unit cost
-  totalLanded: number;
-  margin: number; // Original margin percentage
-  turnover: number; // Inventory turnover rate
+  totalLanded: number; // Calculated: unitCost + shipping + storage + (unitCost * carryingCost / 100)
+  margin: number; // Original margin percentage (assuming it's descriptive for now)
+  turnover: number; // Inventory turnover rate (descriptive for now)
   daysInInventory: number; // Days item stays in inventory
-  // Fields for tracking changes
+
+  // Fields for tracking and displaying changes
   isChanged?: boolean;
-  changeDetails?: { [key in keyof Partial<Product>]?: { oldValue: any; newValue: any; reasoning?: string } };
+  changeSummary?: { 
+    [K in keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary' | 'margin' | 'turnover'>]?: { 
+      originalValue: number | string; 
+      newValue: number | string; 
+      reasoning?: string; 
+    } 
+  };
 }
 
 interface PerplexityChangeDetail {
   productId: string;
-  field: keyof Product;
-  newValue: number | string;
+  field: keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary' | 'totalLanded' | 'margin' | 'turnover'>; // Fields AI can change
+  newValue: number | string; // AI might return number as string
   reasoning?: string;
 }
 
@@ -35,14 +51,14 @@ interface PerplexityOptimizationOption {
   title: string;
   description: string;
   estimatedSavings: number;
-  impact: "High" | "Medium" | "Low" | "Very High"; // Ensure Perplexity provides this or map it
+  impact: "High" | "Medium" | "Low" | "Very High"; // Ensure AI provides one of these
   detailedChanges: PerplexityChangeDetail[];
-  category?: string;
-  webFindings?: string;
+  category?: string; 
+  webFindings?: string; 
 }
 
-// --- Initial Data & Helpers ---
-const initialBaseProducts: Omit<Product, 'totalLanded' | 'isChanged' | 'changeDetails'>[] = [
+// --- Initial Data & Helper Functions ---
+const initialBaseProductsData: Omit<Product, 'totalLanded' | 'isChanged' | 'changeSummary'>[] = [
     { id: "WDG-001", name: "Wireless Bluetooth Headphones", unitCost: 45.0, shipping: 3.5, storage: 0.8, carryingCost: 15, margin: 48.0, turnover: 4.2, daysInInventory: 87 },
     { id: "SMT-002", name: "Smartphone Case - Silicone", unitCost: 8.5, shipping: 1.2, storage: 0.15, carryingCost: 12, margin: 46.7, turnover: 6.8, daysInInventory: 54 },
     { id: "CHG-003", name: "USB-C Fast Charger 65W", unitCost: 22.0, shipping: 2.8, storage: 0.4, carryingCost: 18, margin: 45.8, turnover: 3.6, daysInInventory: 101 },
@@ -51,10 +67,14 @@ const initialBaseProducts: Omit<Product, 'totalLanded' | 'isChanged' | 'changeDe
 ];
 
 const calculateTotalLandedCost = (product: Pick<Product, 'unitCost' | 'shipping' | 'storage' | 'carryingCost'>): number => {
-    return (product.unitCost || 0) + (product.shipping || 0) + (product.storage || 0) + ((product.unitCost || 0) * (product.carryingCost || 0) / 100);
+    const unitCost = Number(product.unitCost) || 0;
+    const shipping = Number(product.shipping) || 0;
+    const storage = Number(product.storage) || 0;
+    const carryingCostPercent = Number(product.carryingCost) || 0;
+    return unitCost + shipping + storage + (unitCost * carryingCostPercent / 100);
 };
 
-const processedInitialInventory: Product[] = initialBaseProducts.map(p => ({
+const processedInitialInventory: Product[] = initialBaseProductsData.map(p => ({
     ...p,
     totalLanded: calculateTotalLandedCost(p)
 }));
@@ -68,6 +88,7 @@ function SpinnerIcon({ className = "h-8 w-8 text-blue-600" }: { className?: stri
   );
 }
 
+// --- Main Page Component ---
 export default function CostRecommendationsPage() {
   const [baseInventory, setBaseInventory] = useState<Product[]>(processedInitialInventory);
   const [perplexityOptions, setPerplexityOptions] = useState<PerplexityOptimizationOption[]>([]);
@@ -77,34 +98,28 @@ export default function CostRecommendationsPage() {
 
   const iconMap: { [key: string]: React.ElementType } = {
     supplier: Package, consolidation: Package, vendor: Package,
-    eoq: TrendingDown, quantity: TrendingDown, optimization: TrendingDown,
+    eoq: TrendingDown, quantity: TrendingDown, optimization: TrendingDown, turnover: TrendingDown,
     jit: Zap, "just-in-time": Zap,
-    shipping: Truck, logistics: Truck, route: Truck,
-    purchasing: DollarSign, bulk: DollarSign, negotiation: DollarSign,
+    shipping: Truck, logistics: Truck, route: Truck, freight: Truck,
+    purchasing: DollarSign, bulk: DollarSign, negotiation: DollarSign, discount: DollarSign,
     tariff: AlertTriangle, regulation: AlertTriangle,
-    ai: BrainCircuit,
-    default: Info,
+    storage: Package, warehouse: Package, holding: Package,
+    ai: BrainCircuit, default: Info,
   };
-
   const colorMap: { [key: string]: string } = {
-    supplier: "from-green-500 to-emerald-600",
-    eoq: "from-blue-500 to-cyan-600",
-    jit: "from-purple-500 to-violet-600",
-    shipping: "from-orange-500 to-red-600",
-    purchasing: "from-indigo-500 to-blue-600",
-    tariff: "from-red-400 to-pink-500",
-    ai: "from-sky-500 to-indigo-600",
+    supplier: "from-green-500 to-emerald-600", eoq: "from-blue-500 to-cyan-600",
+    jit: "from-purple-500 to-violet-600", shipping: "from-orange-500 to-red-600",
+    purchasing: "from-indigo-500 to-blue-600", tariff: "from-red-400 to-pink-500",
+    storage: "from-teal-500 to-cyan-600", ai: "from-sky-500 to-indigo-600",
     default: "from-gray-500 to-slate-600",
   };
 
   const assignVisuals = (title: string = "", description: string = ""): { icon: React.ElementType; color: string } => {
     const combinedText = `${title.toLowerCase()} ${description.toLowerCase()}`;
     for (const key in iconMap) {
-      if (combinedText.includes(key)) {
-        return { icon: iconMap[key], color: colorMap[key] || colorMap.default };
-      }
+      if (combinedText.includes(key)) return { icon: iconMap[key], color: colorMap[key] || colorMap.default };
     }
-    if (title.toLowerCase().includes("ai") || description.toLowerCase().includes("ai")) return { icon: iconMap.ai, color: colorMap.ai }
+    if (title.toLowerCase().includes("ai") || description.toLowerCase().includes("ai")) return { icon: iconMap.ai, color: colorMap.ai };
     return { icon: iconMap.default, color: colorMap.default };
   };
 
@@ -119,11 +134,11 @@ export default function CostRecommendationsPage() {
 2.  A "title" string (max 10 words, e.g., "Negotiate Bulk Discount for WDG-001").
 3.  A "description" string (max 30 words, detailing the action).
 4.  An "estimatedSavings" number (total monetary savings for implementing this single strategy across affected products).
-5.  An "impact" string: "High", "Medium", or "Low".
+5.  An "impact" string: "High", "Medium", or "Low". (Please ensure you provide one of these exact strings).
 6.  A "detailedChanges" array of objects. Each object MUST specify:
     a.  "productId": The ID of the product from the input inventory to change.
-    b.  "field": The specific product field to change (e.g., "unitCost", "shipping", "storage", "daysInInventory", "carryingCost"). Values for "field" must be one of: "unitCost", "shipping", "storage", "carryingCost", "daysInInventory".
-    c.  "newValue": The new numeric value for that field. (If changing 'daysInInventory', ensure it's a whole number).
+    b.  "field": The specific product field to change. Values for "field" must be one of: "unitCost", "shipping", "storage", "carryingCost", "daysInInventory".
+    c.  "newValue": The new numeric value for that field. (If changing 'daysInInventory', ensure it's a whole number. For 'carryingCost', it's a percentage).
     d.  "reasoning": A brief (max 15 words) justification for this specific change.
 7.  (Optional) A "webFindings" string (max 50 words) summarizing any web research for cheaper options, tariffs, or regulations relevant to this strategy.
 
@@ -150,18 +165,14 @@ Example of one strategy object in the array:
 ${JSON.stringify(baseInventory.map(({ id, name, unitCost, shipping, storage, carryingCost, daysInInventory, turnover }) => ({ id, name, unitCost, shipping, storage, carryingCost, daysInInventory, turnover })), null, 2)}
 
 Please provide 3-5 cost optimization strategies in the specified JSON format.`;
-
-          // Log the request being sent to your /api/perplexity
-          console.log("--- Sending to /api/perplexity --- Body:", JSON.stringify({
-            model: "sonar-pro", // Make sure this is a valid model you have access to
-            messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userPrompt } ],
-          }, null, 2));
+          
+          console.log("--- Sending to /api/perplexity --- Model: sonar-pro");
           
           const response = await fetch("/api/perplexity", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "sonar-pro", // Ensure this model name is correct and accessible
+              model: "sonar-pro", 
               messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userPrompt } ],
             }),
           });
@@ -173,53 +184,45 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             throw new Error(perplexityErrorMessage);
           }
 
-          const result = await response.json(); // This is the full object from Perplexity via your /api/perplexity route
+          const result = await response.json();
           let strategies: PerplexityOptimizationOption[] = [];
 
-          // --- CORRECTED PARSING LOGIC ---
           if (result && result.choices && result.choices.length > 0 && result.choices[0].message && result.choices[0].message.content) {
             const contentString = result.choices[0].message.content;
-            console.log("--- Content string from Perplexity (to be parsed) ---:", contentString);
             try {
               strategies = JSON.parse(contentString);
               if (!Array.isArray(strategies)) {
-                console.error("Parsed content from Perplexity is not an array:", strategies);
-                throw new Error("Perplexity AI provided data in an unexpected format (parsed content not an array).");
+                throw new Error("Parsed content not an array.");
               }
             } catch (e: any) {
-              console.error("Failed to parse Perplexity message content as JSON array:", e.message);
-              console.error("Problematic content string from Perplexity was:", contentString);
+              console.error("Initial JSON.parse failed:", e.message, "Content:", contentString.substring(0,500));
               const jsonMatch = contentString.match(/```json\n([\s\S]*?)\n```/);
               if (jsonMatch && jsonMatch[1]) {
                   try {
                       strategies = JSON.parse(jsonMatch[1]);
                       if (!Array.isArray(strategies)) {
-                          console.error("Parsed extracted content from Perplexity is not an array:", strategies);
-                          throw new Error("Perplexity AI provided data in an unexpected format (extracted content not an array).");
+                          throw new Error("Extracted content not an array.");
                       }
                   } catch (e2: any) {
-                      console.error("Failed to parse extracted JSON from Perplexity response:", e2.message);
-                      throw new Error("Invalid JSON in Perplexity response even after code block extraction.");
+                      throw new Error(`Invalid JSON after code block extraction: ${e2.message}`);
                   }
               } else {
-                  throw new Error(`Perplexity AI response content was not valid JSON: ${e.message}.`);
+                  throw new Error(`Content not valid JSON and no code block found: ${e.message}`);
               }
             }
           } else {
-            console.error("Unexpected Perplexity response structure, missing choices or content:", result);
-            throw new Error("Received incomplete or malformed data structure from Perplexity AI.");
+            throw new Error("Incomplete/malformed data from Perplexity AI.");
           }
-          // --- END OF CORRECTED PARSING LOGIC ---
           
-          const validatedStrategies = strategies.filter(s => s && s.id && s.title && Array.isArray(s.detailedChanges));
+          const validatedStrategies = strategies.filter(s => s && s.id && s.title && Array.isArray(s.detailedChanges) && s.impact);
           if (validatedStrategies.length !== strategies.length) {
-             console.warn("Some strategies from Perplexity were filtered out due to missing required fields (id, title, detailedChanges). Original count:", strategies.length, "Validated count:", validatedStrategies.length);
+             console.warn("Some strategies were filtered: missing fields. Original:", strategies.length, "Validated:", validatedStrategies.length);
           }
-          setPerplexityOptions(validatedStrategies.map(s => ({...s, detailedChanges: Array.isArray(s.detailedChanges) ? s.detailedChanges : [] })));
+          setPerplexityOptions(validatedStrategies.map(s => ({...s, impact: s.impact || "Medium", detailedChanges: Array.isArray(s.detailedChanges) ? s.detailedChanges : [] })));
 
         } catch (err: any) {
           console.error("Error in fetchOptions (useEffect):", err);
-          setPerplexityError(err.message || "An unknown error occurred while fetching suggestions.");
+          setPerplexityError(err.message || "Unknown error fetching suggestions.");
         } finally {
           setIsLoadingPerplexity(false);
         }
@@ -237,44 +240,32 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
   };
 
   const optimizedDisplayProducts = useMemo((): Product[] => {
-    if (selectedOptionIds.length === 0) {
-      return baseInventory.map(p => ({ ...p, isChanged: false, changeDetails: {} }));
-    }
+    let workingInventory: Product[] = JSON.parse(JSON.stringify(baseInventory));
 
-    const tempOptimizedProducts: Product[] = JSON.parse(JSON.stringify(baseInventory));
-    const productChangeTracker: { [productId: string]: NonNullable<Product['changeDetails']> } = {};
+    if (selectedOptionIds.length === 0) {
+      return workingInventory.map(p => ({ ...p, isChanged: false, changeSummary: {} }));
+    }
 
     selectedOptionIds.forEach((optionId) => {
       const selectedOption = perplexityOptions.find((opt) => opt.id === optionId);
       if (selectedOption?.detailedChanges) {
         selectedOption.detailedChanges.forEach((change) => {
-          const productIndex = tempOptimizedProducts.findIndex((p) => p.id === change.productId);
+          const productIndex = workingInventory.findIndex((p) => p.id === change.productId);
           if (productIndex !== -1) {
-            const productToUpdate = tempOptimizedProducts[productIndex];
-            const fieldToChange = change.field as keyof Product;
+            const productToUpdate = workingInventory[productIndex];
+            const fieldToChange = change.field;
             
-            let newValue = change.newValue;
-            if (typeof (productToUpdate as any)[fieldToChange] === 'number' && typeof newValue === 'string') {
-                newValue = parseFloat(newValue);
-            } else if (typeof (productToUpdate as any)[fieldToChange] === 'number' && typeof newValue !== 'number') {
-                newValue = parseFloat(String(newValue)) || (productToUpdate as any)[fieldToChange]; 
-            }
+            let parsedNewValue = change.newValue;
+            const originalProductFieldType = typeof (baseInventory.find(p=>p.id === change.productId) as any)?.[fieldToChange];
 
-            if (!productChangeTracker[change.productId]) {
-                productChangeTracker[change.productId] = {};
+            if (originalProductFieldType === 'number') {
+                parsedNewValue = parseFloat(String(change.newValue));
+                if (isNaN(parsedNewValue)) {
+                    console.warn(`Could not parse newValue '${change.newValue}' as number for field '${fieldToChange}' on product '${change.productId}'. Keeping original value from current working state.`);
+                    parsedNewValue = (productToUpdate as any)[fieldToChange]; 
+                }
             }
-            
-            if (!productChangeTracker[change.productId]![fieldToChange]) {
-                 productChangeTracker[change.productId]![fieldToChange] = {
-                    oldValue: (productToUpdate as any)[fieldToChange], 
-                    newValue: newValue,
-                    reasoning: change.reasoning
-                };
-            } else {
-                 productChangeTracker[change.productId]![fieldToChange]!.newValue = newValue;
-                 if(change.reasoning) productChangeTracker[change.productId]![fieldToChange]!.reasoning += `; ${change.reasoning}`;
-            }
-            (productToUpdate as any)[fieldToChange] = newValue;
+            (productToUpdate as any)[fieldToChange] = parsedNewValue;
 
             if (["unitCost", "shipping", "storage", "carryingCost"].includes(fieldToChange as string)) {
                 productToUpdate.totalLanded = calculateTotalLandedCost(productToUpdate);
@@ -284,25 +275,43 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
       }
     });
     
-    return tempOptimizedProducts
-        .map(p => {
-            const originalProductData = baseInventory.find(op => op.id === p.id) || p;
-            const changesForThisProduct = productChangeTracker[p.id] || {};
-            let isProductChangedOverall = false;
-            const displayChangeDetails: Product['changeDetails'] = {};
+    return workingInventory
+        .map(optimizedProduct => {
+            const originalProduct = baseInventory.find(op => op.id === optimizedProduct.id);
+            if (!originalProduct) return optimizedProduct; 
 
-            for(const key in changesForThisProduct) {
-                const field = key as keyof Product;
-                if((p as any)[field] !== (originalProductData as any)[field]){
+            let isProductChangedOverall = false;
+            const displayChangeSummary: Product['changeSummary'] = {};
+            const fieldsToCheck: (keyof Omit<Product, 'id' | 'name' | 'isChanged' | 'changeSummary'>)[] = ["unitCost", "shipping", "storage", "carryingCost", "daysInInventory", "totalLanded", "margin", "turnover"]; 
+            
+            fieldsToCheck.forEach(field => {
+                const originalValue = (originalProduct as any)[field];
+                const optimizedValue = (optimizedProduct as any)[field];
+
+                // Use a tolerance for floating point comparisons if necessary, e.g. for totalLanded
+                const valuesDiffer = (typeof originalValue === 'number' && typeof optimizedValue === 'number')
+                    ? Math.abs(originalValue - optimizedValue) > 1e-9 // Tolerance for float comparison
+                    : originalValue !== optimizedValue;
+
+                if (valuesDiffer) {
                     isProductChangedOverall = true;
-                    displayChangeDetails[field] = {
-                        oldValue: (originalProductData as any)[field],
-                        newValue: (p as any)[field],
-                        reasoning: changesForThisProduct[field]?.reasoning
+                    let reasoningFromOption: string | undefined;
+                     for (const optionId of selectedOptionIds) { // Find reasoning from any selected option that made this change
+                        const opt = perplexityOptions.find(o => o.id === optionId);
+                        const relevantChange = opt?.detailedChanges.find(dc => dc.productId === optimizedProduct.id && dc.field === field);
+                        if (relevantChange?.reasoning) {
+                            reasoningFromOption = relevantChange.reasoning; 
+                            break; 
+                        }
+                    }
+                    displayChangeSummary[field] = {
+                        originalValue: originalValue,
+                        newValue: optimizedValue,
+                        reasoning: reasoningFromOption
                     };
                 }
-            }
-            return { ...p, isChanged: isProductChangedOverall, changeDetails: displayChangeDetails };
+            });
+            return { ...optimizedProduct, isChanged: isProductChangedOverall, changeSummary: displayChangeSummary };
         })
         .sort((a, b) => {
             if (a.isChanged && !b.isChanged) return -1;
@@ -319,7 +328,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
     }, 0);
   }, [selectedOptionIds, perplexityOptions]);
 
-  const getImpactColor = (impact?: string) => {
+  const getImpactColor = (impact?: string): string => {
     switch (impact) {
       case "Very High": return "bg-red-100 text-red-800";
       case "High": return "bg-orange-100 text-orange-800";
@@ -329,6 +338,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
     }
   };
 
+  // --- RENDER SECTION ---
   if (isLoadingPerplexity && perplexityOptions.length === 0 && !perplexityError) {
     return (
       <div className="space-y-8 pr-20">
@@ -362,7 +372,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
           {selectedOptionIds.length > 0 && (
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
               <span className="text-sm font-medium">Total Selected Savings: </span>
-              <span className="text-lg font-bold">${totalAppliedSavings.toLocaleString()}</span>
+              <span className="text-lg font-bold">${totalAppliedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
           )}
         </div>
@@ -378,11 +388,11 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
             <div className="text-center py-10 text-gray-500 bg-white rounded-lg shadow border">
                 <BrainCircuit className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <p className="text-lg font-semibold">No AI strategies available at this moment.</p>
-                <p className="text-sm">This could be due to the current inventory data or temporary issues. Please try refreshing or adjusting your inventory input.</p>
+                <p className="text-sm">This could be due to the current inventory data or temporary issues. Please try again or check your Perplexity API setup.</p>
             </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           {perplexityOptions.map((option) => {
             const { icon: Icon, color: gradColor } = assignVisuals(option.title, option.description);
             const isSelected = selectedOptionIds.includes(option.id);
@@ -390,21 +400,30 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
               <Card
                 key={option.id}
                 className={`cursor-pointer transition-all duration-300 flex flex-col h-full shadow-md hover:shadow-xl ${
-                  isSelected ? "ring-2 ring-blue-600 shadow-xl bg-slate-50 scale-[1.02]" : "bg-white"
+                  isSelected ? "ring-2 ring-blue-500 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50 scale-[1.01]" : "bg-white hover:scale-[1.01]"
                 }`}
                 onClick={() => handleOptionToggle(option.id)}
               >
-                <CardContent className="p-5 flex-grow flex flex-col">
-                  <div className="flex items-start space-x-3 mb-3">
-                    <Checkbox id={`checkbox-${option.id}`} checked={isSelected} className="mt-1 flex-shrink-0 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600" />
-                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradColor} flex items-center justify-center flex-shrink-0`}> <Icon className="h-5 w-5 text-white" /> </div>
-                    <h3 className="font-semibold text-md text-gray-800 leading-tight flex-grow" title={option.title}>{option.title}</h3>
+                <CardContent className="p-4 flex flex-col flex-grow"> {/* Use p-4 for content */}
+                  <div className="flex items-start space-x-3"> {/* Checkbox and content side-by-side */}
+                    <Checkbox
+                      id={`checkbox-${option.id}`}
+                      checked={isSelected}
+                      className="mt-1 flex-shrink-0 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      aria-label={`Select option ${option.title}`}
+                    />
+                    <div className="flex-1 min-w-0"> {/* Ensures text wraps */}
+                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradColor} flex items-center justify-center mb-2`}>
+                            <Icon className="h-5 w-5 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-sm text-gray-800 mb-1 truncate" title={option.title}>{option.title}</h3>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-600 mb-2 flex-grow min-h-[3em] line-clamp-3">{option.description}</p>
-                  {option.webFindings && ( <p className="text-[11px] text-blue-700 italic mb-2 p-2 bg-blue-50 rounded-md line-clamp-2" title={option.webFindings}> <Info size={12} className="inline mr-1 align-middle"/>{option.webFindings} </p> )}
-                  <div className="mt-auto pt-2 border-t border-gray-200/60 flex justify-between items-center">
-                    <div className="text-xl font-bold text-green-600">${option.estimatedSavings.toLocaleString()}</div>
-                    <Badge className={`${getImpactColor(option.impact)} px-2.5 py-1 text-xs`} variant="secondary"> {option.impact} Impact </Badge>
+                  <p className="text-xs text-gray-600 mb-2 flex-grow min-h-[2.5em] line-clamp-3">{option.description}</p>
+                  {option.webFindings && ( <p className="text-[10px] text-blue-600 italic mb-2 p-1.5 bg-blue-50/80 rounded-md line-clamp-2" title={option.webFindings}> <Info size={11} className="inline mr-1 align-text-bottom"/>{option.webFindings} </p> )}
+                  <div className="mt-auto pt-2 border-t border-gray-200/70 flex justify-between items-center">
+                    <div className="text-lg font-bold text-green-600">${option.estimatedSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    <Badge className={`${getImpactColor(option.impact)} px-2 py-0.5 text-[10px] font-medium`} variant="secondary"> {option.impact} Impact </Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -415,7 +434,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
 
       <Card className="shadow-xl border-0 bg-white overflow-hidden">
         <CardHeader className="bg-slate-50 border-b sticky top-0 z-10">
-          <CardTitle className="text-xl text-gray-800">
+           <CardTitle className="text-xl text-gray-800">
             {selectedOptionIds.length > 0 ? "Optimized" : "Current"} Detailed Cost Analysis
           </CardTitle>
           {selectedOptionIds.length > 0 && ( <p className="text-sm text-gray-600">Showing projected costs with selected AI optimizations. Changed items are at the top and <span className="bg-yellow-100 px-1 rounded">highlighted</span>.</p> )}
@@ -423,7 +442,7 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-sm">
-              <thead className="sticky top-[calc(3.5rem+1px)] z-10">
+              <thead className="sticky top-[calc(3.5rem+1px)] z-10"> {/* Ensure this top value matches CardHeader height */}
                 <tr className="border-b bg-gray-100 shadow-sm">
                   {["PRODUCT", "UNIT COST", "SHIPPING", "STORAGE/MONTH", "CARRYING COST %", "TOTAL LANDED", "MARGIN %", "TURNOVER", "DAYS IN INVENTORY"].map(header => (
                      <th key={header} className="text-left py-3.5 px-4 font-semibold text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">{header}</th>
@@ -434,51 +453,49 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                 {optimizedDisplayProducts.length === 0 && !isLoadingPerplexity && (
                     <tr><td colSpan={9} className="text-center py-10 text-gray-500">No inventory data to display.</td></tr>
                 )}
-                {optimizedDisplayProducts.map((product) => {
-                  const originalForDiff = baseInventory.find(p => p.id === product.id) || product;
-                  return (
+                {optimizedDisplayProducts.map((product) => (
                     <tr
                       key={product.id}
                       className={`border-b transition-colors duration-150 ${
-                        product.isChanged ? "bg-yellow-50 hover:bg-yellow-100" : "hover:bg-slate-50"
+                        product.isChanged ? "bg-yellow-50 hover:bg-yellow-100/70" : "hover:bg-slate-50/70"
                       }`}
                     >
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-gray-800">{product.id}</div>
-                        <div className="text-xs text-gray-500">{product.name}</div>
+                        <div className="text-xs text-gray-500 max-w-[150px] truncate" title={product.name}>{product.name}</div>
                       </td>
-                      {(['unitCost', 'shipping', 'storage'] as const).map(field => (
+                      {(["unitCost", "shipping", "storage"] as const).map(field => (
                         <td key={field} className="py-3.5 px-4 whitespace-nowrap">
-                          <div className={`font-medium ${product.changeDetails?.[field] ? 'text-gray-900' : 'text-gray-700'}`}>
+                          <div className={`font-medium ${product.changeSummary?.[field] ? 'text-gray-900' : 'text-gray-700'}`}>
                             ${(product[field] as number).toFixed(2)}
-                            {product.changeDetails?.[field] && (product[field] as number) !== product.changeDetails[field]!.oldValue && (
-                              <div className={`text-xs mt-0.5 ${ ((product[field] as number) < product.changeDetails[field]!.oldValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                { ((product[field] as number) < product.changeDetails[field]!.oldValue) ? '↓' : '↑' } 
-                                ${(Math.abs(product.changeDetails[field]!.oldValue - (product[field] as number))).toFixed(2)}
-                                {product.changeDetails[field]?.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeDetails[field]?.reasoning}>({product.changeDetails[field]?.reasoning})</span>}
+                            {product.changeSummary?.[field] && (
+                              <div className={`text-xs mt-0.5 ${ ((product[field] as number) < product.changeSummary[field]!.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
+                                { ((product[field] as number) < product.changeSummary[field]!.originalValue) ? '↓' : '↑' } 
+                                ${(Math.abs(product.changeSummary[field]!.originalValue - (product[field] as number))).toFixed(2)}
+                                {product.changeSummary[field]?.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary[field]?.reasoning}>({product.changeSummary[field]?.reasoning})</span>}
                               </div>
                             )}
                           </div>
                         </td>
                       ))}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className={`font-medium ${product.changeDetails?.carryingCost ? 'text-gray-900' : 'text-gray-700'}`}>
+                        <div className={`font-medium ${product.changeSummary?.carryingCost ? 'text-gray-900' : 'text-gray-700'}`}>
                             {(product.carryingCost as number).toFixed(0)}%
-                            {product.changeDetails?.carryingCost && (product.carryingCost as number) !== product.changeDetails.carryingCost.oldValue && (
-                                <div className={`text-xs mt-0.5 ${ ((product.carryingCost as number) < product.changeDetails.carryingCost.oldValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                    { ((product.carryingCost as number) < product.changeDetails.carryingCost.oldValue) ? '↓' : '↑' } 
-                                    {Math.abs(product.changeDetails.carryingCost.oldValue - (product.carryingCost as number)).toFixed(0)}%
-                                    {product.changeDetails.carryingCost.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeDetails.carryingCost.reasoning}>({product.changeDetails.carryingCost.reasoning})</span>}
+                            {product.changeSummary?.carryingCost && (
+                                <div className={`text-xs mt-0.5 ${ ((product.carryingCost as number) < product.changeSummary.carryingCost.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
+                                    { ((product.carryingCost as number) < product.changeSummary.carryingCost.originalValue) ? '↓' : '↑' } 
+                                    {Math.abs(product.changeSummary.carryingCost.originalValue - (product.carryingCost as number)).toFixed(0)}%
+                                    {product.changeSummary.carryingCost.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary.carryingCost.reasoning}>({product.changeSummary.carryingCost.reasoning})</span>}
                                 </div>
                             )}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className={`font-bold ${product.isChanged && product.totalLanded !== originalForDiff.totalLanded ? 'text-blue-700' : 'text-gray-800'}`}>
+                        <div className={`font-bold ${product.changeSummary?.totalLanded ? 'text-blue-700' : 'text-gray-800'}`}>
                             ${product.totalLanded.toFixed(2)}
-                            {(product.isChanged && product.totalLanded !== originalForDiff.totalLanded) && (
-                                <div className={`text-xs mt-0.5 font-semibold ${product.totalLanded < originalForDiff.totalLanded ? 'text-green-600' : 'text-red-500'}`}>
-                                    {product.totalLanded < originalForDiff.totalLanded ? '↓ SAVED' : '↑ COST'}: ${(Math.abs(originalForDiff.totalLanded - product.totalLanded)).toFixed(2)}
+                            {product.changeSummary?.totalLanded && (
+                                <div className={`text-xs mt-0.5 font-semibold ${product.totalLanded < product.changeSummary.totalLanded.originalValue ? 'text-green-600' : 'text-red-500'}`}>
+                                    {product.totalLanded < product.changeSummary.totalLanded.originalValue ? '↓ SAVED' : '↑ COST'}: ${(Math.abs(product.changeSummary.totalLanded.originalValue - product.totalLanded)).toFixed(2)}
                                 </div>
                             )}
                         </div>
@@ -486,20 +503,19 @@ Please provide 3-5 cost optimization strategies in the specified JSON format.`;
                       <td className="py-3.5 px-4 font-medium text-emerald-600 whitespace-nowrap">{(product.margin as number).toFixed(1)}%</td>
                       <td className="py-3.5 px-4 text-gray-700 whitespace-nowrap">{(product.turnover as number).toFixed(1)}x</td>
                       <td className={`py-3.5 px-4 whitespace-nowrap`}>
-                         <div className={`${(product.daysInInventory as number) > 100 ? "text-rose-600 font-medium" : "text-gray-700"} ${product.changeDetails?.daysInInventory ? 'font-semibold' : ''}`}>
+                         <div className={`${(product.daysInInventory as number) > 100 ? "text-rose-600 font-medium" : "text-gray-700"} ${product.changeSummary?.daysInInventory ? 'font-semibold' : ''}`}>
                             {Math.round(product.daysInInventory as number)} days
-                            {product.changeDetails?.daysInInventory && (product.daysInInventory as number) !== product.changeDetails.daysInInventory.oldValue && (
-                                 <div className={`text-xs mt-0.5 ${ ((product.daysInInventory as number) < product.changeDetails.daysInInventory.oldValue) ? 'text-green-600' : 'text-red-500' }`}>
-                                    { ((product.daysInInventory as number) < product.changeDetails.daysInInventory.oldValue) ? '↓' : '↑' } 
-                                    {Math.round(Math.abs(product.changeDetails.daysInInventory.oldValue - (product.daysInInventory as number)))} days
-                                    {product.changeDetails.daysInInventory.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeDetails.daysInInventory.reasoning}>({product.changeDetails.daysInInventory.reasoning})</span>}
+                            {product.changeSummary?.daysInInventory && (
+                                 <div className={`text-xs mt-0.5 ${ ((product.daysInInventory as number) < product.changeSummary.daysInInventory.originalValue) ? 'text-green-600' : 'text-red-500' }`}>
+                                    { ((product.daysInInventory as number) < product.changeSummary.daysInInventory.originalValue) ? '↓' : '↑' } 
+                                    {Math.round(Math.abs(product.changeSummary.daysInInventory.originalValue - (product.daysInInventory as number)))} days
+                                    {product.changeSummary.daysInInventory.reasoning && <span className="italic text-gray-400 text-[10px] block max-w-[120px] truncate" title={product.changeSummary.daysInInventory.reasoning}>({product.changeSummary.daysInInventory.reasoning})</span>}
                                 </div>
                             )}
                         </div>
                       </td>
                     </tr>
-                  )
-                })}
+                  ))}
               </tbody>
             </table>
           </div>
