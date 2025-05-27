@@ -1,7 +1,9 @@
 # SupplySense
 
-## Overview
+## Our Overview
 SupplySense is a comprehensive inventory management and supply chain optimization platform designed to help businesses efficiently manage their inventory, forecast demand, and analyze costs. The application provides an intuitive interface for tracking inventory, predicting future demand, and optimizing supply chain operations.
+
+Perplexity AI Hackathon
 
 ## Features
 - **Dashboard**: Centralized view of key metrics and performance indicators
@@ -39,7 +41,7 @@ To run the application in development mode:
 ```
 pnpm dev
 ```
-The application will be available at http://localhost:3000
+Check http://localhost:3000
 
 ### Production Build
 To create a production build:
@@ -67,7 +69,7 @@ pnpm start
 - **Zod**: TypeScript-first schema validation
 
 ## License
-[Specify your license information here]
+Nah
 
 ## Contributors
-- [List contributors here]
+Vibha, Me, Aryan, Diya
