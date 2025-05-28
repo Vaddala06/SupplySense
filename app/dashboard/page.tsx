@@ -1,11 +1,14 @@
 "use client";
 
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, TrendingUp, ArrowDown, LoaderCircle } from "lucide-react";
 import { DollarSign, TrendingUp, ArrowDown, LoaderCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useGlobalStore } from "@/lib/store";
 import { useMemo, useState, useEffect } from "react";
 
+// Utility to hash inventory data (for localStorage fallbacks)
 // Utility to hash inventory data (for localStorage fallbacks)
 function hashInventory(inventory: any[]): string {
   if (!inventory || inventory.length === 0) return "empty";
@@ -13,6 +16,7 @@ function hashInventory(inventory: any[]): string {
     inventory.map((item) => `${item.id}:${item.stockLevel}`).join("|")
   );
 }
+
 
 export default function DashboardPage() {
   // 1) Pull in raw inventory from your global store
@@ -351,3 +355,6 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
     </div>
   );
 }
+
+
+
