@@ -7,8 +7,6 @@ import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { useGlobalStore } from "@/lib/store";
 
-const PPLX_API_KEY = "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";
-
 // Global store for inventory data
 let globalInventoryData: any[] = [];
 
