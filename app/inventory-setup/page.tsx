@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import { CardTitle } from "@/components/ui/card";
 import { CardHeader } from "@/components/ui/card";
@@ -8,11 +8,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Upload } from "lucide-react";
-import { setGlobalInventoryData } from "@/components/layout/header";
+import { useGlobalStore } from "@/lib/store";
 
 export default function InventorySetupPage() {
   const [products, setProducts] = useState([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const setInventory = useGlobalStore((state) => state.setInventory);
+
+  // Load inventory from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("ss_inventory");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setProducts(parsed);
+        setInventory(parsed);
+      } catch {}
+    }
+  }, [setInventory]);
 
   const getClassColor = (abcClass: string) => {
     switch (abcClass) {
@@ -57,7 +70,8 @@ export default function InventorySetupPage() {
           };
         });
         setProducts(csvProducts);
-        setGlobalInventoryData(csvProducts);
+        setInventory(csvProducts);
+        localStorage.setItem("ss_inventory", JSON.stringify(csvProducts));
         localStorage.removeItem("ss_chat_history");
       },
     });
