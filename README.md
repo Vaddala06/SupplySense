@@ -7,6 +7,8 @@ SupplySense is powered by the Perplexity API in 3 key ways. First, we use Sonar 
 
 Perplexity AI Hackathon
 
+https://www.youtube.com/watch?v=rGBj1SmaJAE&t=45s
+
 ## Features
 - **Dashboard**: Centralized view of key metrics and performance indicators
 - **Inventory Setup**: Easy configuration and management of inventory items
