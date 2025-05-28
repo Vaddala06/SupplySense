@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { useGlobalStore } from "@/lib/store";
+import { createPortal } from "react-dom";
 
 // Global store for inventory data
 let globalInventoryData: any[] = [];
@@ -86,9 +87,7 @@ export function Header() {
       // Only send system, then alternate user/assistant, ending with the new user message
       const filteredMessages = [...messages];
       // Remove any system messages from previous history
-      const nonSystemMessages = filteredMessages.filter(
-        (m) => m.role !== "system"
-      );
+      const nonSystemMessages = filteredMessages; // Only 'user' and 'assistant' roles are present
       // Build up alternation, starting after system
       const apiMessages = [{ role: "system", content: systemContent }];
       // Add up to the last 6 messages (3 user/assistant pairs), but always alternate
@@ -135,6 +134,15 @@ export function Header() {
         .replace(/\n{3,}/g, "\n\n") // Remove excessive newlines
         .replace(/\s+$/g, "") // Trim trailing whitespace
         .replace(/\n{2,}/g, "\n\n"); // Normalize double newlines
+      // Limit to 5-6 sentences, add summary if too long
+      const sentences = assistantContent.match(/[^.!?]+[.!?]+/g) || [];
+      if (sentences.length > 6) {
+        assistantContent =
+          sentences.slice(0, 6).join(" ").trim() +
+          "\n\n... (response shortened for clarity)";
+      } else if (sentences.length < 5) {
+        // If fewer than 5 sentences, keep as is
+      }
       // Limit to 20 lines, add summary if too long
       const lines = assistantContent.split("\n");
       if (lines.length > 20) {
@@ -182,71 +190,76 @@ export function Header() {
             <MessageCircle className="h-4 w-4 mr-2" />
             Chat Assistant
           </Button>
-          {chatOpen && (
-            <div className="fixed top-6 right-6 z-50 w-80 max-w-full rounded-xl shadow-2xl flex flex-col border border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 min-h-[480px]">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-blue-200 bg-gradient-to-r from-blue-100 to-purple-100 rounded-t-xl">
-                <span className="font-semibold text-lg text-blue-700">
-                  Chat Assistant
-                </span>
-                <button
-                  onClick={() => setChatOpen(false)}
-                  className="p-1 rounded hover:bg-blue-100"
-                >
-                  <X className="h-5 w-5 text-blue-500" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto bg-white/70 p-4 text-sm text-gray-700 rounded-b-xl">
-                {messages.length === 0 && !loading && (
-                  <div className="text-gray-400 text-center mt-8">
-                    Ask me anything about your inventory or supply chain!
-                  </div>
-                )}
-                {messages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={
-                      msg.role === "user" ? "text-right mb-2" : "text-left mb-2"
-                    }
+          {chatOpen &&
+            typeof window !== "undefined" &&
+            createPortal(
+              <div className="fixed top-6 right-6 z-[1000] w-80 max-w-full rounded-xl shadow-2xl flex flex-col border border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 min-h-[480px]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-blue-200 bg-gradient-to-r from-blue-100 to-purple-100 rounded-t-xl">
+                  <span className="font-semibold text-lg text-blue-700">
+                    Chat Assistant
+                  </span>
+                  <button
+                    onClick={() => setChatOpen(false)}
+                    className="p-1 rounded hover:bg-blue-100"
                   >
-                    {msg.role === "user" ? (
-                      <span className="inline-block bg-blue-100 text-blue-800 px-3 py-2 rounded-lg">
-                        {msg.content}
-                      </span>
-                    ) : (
-                      <span className="inline-block bg-purple-100 text-purple-800 px-3 py-2 rounded-lg text-left max-w-full break-words">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </span>
-                    )}
-                  </div>
-                ))}
-                {loading && (
-                  <div className="text-blue-500 text-center mt-4 animate-pulse">
-                    Thinking...
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2 p-4 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-b-xl">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm bg-white/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  placeholder="Type your question..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  disabled={loading}
-                />
-                <Button
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
-                  onClick={sendMessage}
-                  disabled={loading || !input.trim()}
-                >
-                  Send
-                </Button>
-              </div>
-            </div>
-          )}
+                    <X className="h-5 w-5 text-blue-500" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto bg-white/70 p-4 text-sm text-gray-700 rounded-b-xl">
+                  {messages.length === 0 && !loading && (
+                    <div className="text-gray-400 text-center mt-8">
+                      Ask me anything about your inventory or supply chain!
+                    </div>
+                  )}
+                  {messages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={
+                        msg.role === "user"
+                          ? "text-right mb-2"
+                          : "text-left mb-2"
+                      }
+                    >
+                      {msg.role === "user" ? (
+                        <span className="inline-block bg-blue-100 text-blue-800 px-3 py-2 rounded-lg">
+                          {msg.content}
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-purple-100 text-purple-800 px-3 py-2 rounded-lg text-left max-w-full break-words">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {loading && (
+                    <div className="text-blue-500 text-center mt-4 animate-pulse">
+                      Thinking...
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 p-4 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-b-xl">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm bg-white/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Type your question..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleInputKeyDown}
+                    disabled={loading}
+                  />
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
+                    onClick={sendMessage}
+                    disabled={loading || !input.trim()}
+                  >
+                    Send
+                  </Button>
+                </div>
+              </div>,
+              document.body
+            )}
           <Button
             variant="ghost"
             size="sm"
