@@ -16,6 +16,8 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { useGlobalStore } from "@/lib/store";
+import { ChartContainer } from "@/components/ui/chart";
+import * as Recharts from "recharts";
 
 // --- TypeScript Interfaces ---
 interface Product {
@@ -174,11 +176,11 @@ export default function CostRecommendationsPage() {
               [
                 row.id,
                 row.name,
-                row.category ?? "",
-                row.supplier ?? "",
+                (row as any)?.category ? (row as any).category : "",
+                (row as any)?.supplier ? (row as any).supplier : "",
                 row.unitCost,
-                row.stockLevel ?? "",
-                row.abcClass ?? "",
+                (row as any)?.stockLevel ? (row as any).stockLevel : "",
+                (row as any)?.abcClass ? (row as any).abcClass : "",
               ].join(",")
             )
             .slice(0, 5)
@@ -248,7 +250,7 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
                 throw new Error("Parsed content not an array.");
             } catch (e: any) {
               // Try to extract the first valid JSON array from the response
-              const jsonMatch = contentString.match(/\[.*\]/s);
+              const jsonMatch = contentString.match(/\[.*?\]/);
               if (jsonMatch?.[0]) {
                 try {
                   strategies = JSON.parse(jsonMatch[0]);
@@ -444,6 +446,57 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
     }
   };
 
+  const costOverview = useMemo(() => {
+    const products = optimizedDisplayProducts;
+    if (!products.length) return null;
+    const totalCost = products.reduce(
+      (sum, p) => sum + (p.totalLanded || 0),
+      0
+    );
+    const prevTotalCost = baseInventory.reduce(
+      (sum, p) => sum + (p.totalLanded || 0),
+      0
+    );
+    const avgMargin =
+      products.reduce((sum, p) => sum + (p.margin || 0), 0) / products.length;
+    const prevAvgMargin =
+      baseInventory.reduce((sum, p) => sum + (p.margin || 0), 0) /
+      (baseInventory.length || 1);
+    const costDelta = totalCost - prevTotalCost;
+    const marginDelta = avgMargin - prevAvgMargin;
+    // Pie chart data
+    const pieData = [
+      {
+        name: "Unit Cost",
+        value: products.reduce((sum, p) => sum + (p.unitCost || 0), 0),
+      },
+      {
+        name: "Shipping",
+        value: products.reduce((sum, p) => sum + (p.shipping || 0), 0),
+      },
+      {
+        name: "Storage",
+        value: products.reduce((sum, p) => sum + (p.storage || 0), 0),
+      },
+      {
+        name: "Carrying Cost",
+        value: products.reduce(
+          (sum, p) => sum + ((p.unitCost || 0) * (p.carryingCost || 0)) / 100,
+          0
+        ),
+      },
+    ];
+    return {
+      totalCost,
+      prevTotalCost,
+      avgMargin,
+      prevAvgMargin,
+      costDelta,
+      marginDelta,
+      pieData,
+    };
+  }, [optimizedDisplayProducts, baseInventory]);
+
   // --- RENDER SECTION ---
   if (
     isLoadingPerplexity &&
@@ -484,6 +537,106 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
           savings on your inventory.
         </p>
       </div>
+
+      {/* --- Cost Overview Section --- */}
+      {costOverview && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="col-span-1 flex flex-col items-center justify-center p-6">
+            <div className="flex items-center gap-2">
+              <DollarSign className="text-blue-600" />
+              <span className="text-lg font-semibold">
+                Total Inventory Cost
+              </span>
+            </div>
+            <div className="text-3xl font-bold mt-2">
+              $
+              {costOverview.totalCost.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}
+            </div>
+            <div
+              className={`flex items-center mt-1 text-sm ${
+                costOverview.costDelta < 0
+                  ? "text-green-600"
+                  : costOverview.costDelta > 0
+                  ? "text-rose-600"
+                  : "text-gray-500"
+              }`}
+            >
+              {costOverview.costDelta < 0 ? (
+                <TrendingDown className="w-4 h-4 mr-1" />
+              ) : costOverview.costDelta > 0 ? (
+                <Zap className="w-4 h-4 mr-1" />
+              ) : null}
+              {costOverview.costDelta === 0
+                ? "No change"
+                : `${costOverview.costDelta > 0 ? "+" : ""}${(
+                    (costOverview.costDelta /
+                      (costOverview.prevTotalCost || 1)) *
+                    100
+                  ).toFixed(2)}%`}
+            </div>
+          </Card>
+          <Card className="col-span-1 flex flex-col items-center justify-center p-6">
+            <div className="flex items-center gap-2">
+              <Package className="text-emerald-600" />
+              <span className="text-lg font-semibold">Average Margin</span>
+            </div>
+            <div className="text-3xl font-bold mt-2">
+              {costOverview.avgMargin.toFixed(2)}%
+            </div>
+            <div
+              className={`flex items-center mt-1 text-sm ${
+                costOverview.marginDelta < 0
+                  ? "text-rose-600"
+                  : costOverview.marginDelta > 0
+                  ? "text-green-600"
+                  : "text-gray-500"
+              }`}
+            >
+              {costOverview.marginDelta > 0 ? (
+                <TrendingDown className="w-4 h-4 mr-1 rotate-180" />
+              ) : costOverview.marginDelta < 0 ? (
+                <TrendingDown className="w-4 h-4 mr-1" />
+              ) : null}
+              {costOverview.marginDelta === 0
+                ? "No change"
+                : `${
+                    costOverview.marginDelta > 0 ? "+" : ""
+                  }${costOverview.marginDelta.toFixed(2)}%`}
+            </div>
+          </Card>
+          <Card className="col-span-1 flex flex-col items-center justify-center p-6">
+            <div className="w-full h-40">
+              <ChartContainer config={{}}>
+                <Recharts.PieChart>
+                  <Recharts.Pie
+                    data={costOverview.pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    fill="#8884d8"
+                    label
+                  >
+                    {costOverview.pieData.map((entry, idx) => (
+                      <Recharts.Cell
+                        key={`cell-${idx}`}
+                        fill={
+                          ["#6366f1", "#38bdf8", "#fbbf24", "#10b981"][idx % 4]
+                        }
+                      />
+                    ))}
+                  </Recharts.Pie>
+                  <Recharts.Tooltip />
+                  <Recharts.Legend />
+                </Recharts.PieChart>
+              </ChartContainer>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Potential Optimization Strategies Section */}
       <div>

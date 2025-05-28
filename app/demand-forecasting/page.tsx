@@ -2,29 +2,65 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useGlobalStore } from "@/lib/store";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function DemandForecastingPage() {
   const inventory = useGlobalStore((state) => state.inventory);
   const setDemandForecast = useGlobalStore((state) => state.setDemandForecast);
   const [forecast, setForecast] = useState<any[]>([]);
+  const lastInventoryRef = useRef<string>("");
 
-  // Dummy forecast generator for demo; replace with real API/logic as needed
+  // Helper to call Perplexity API
+  const fetchForecast = async () => {
+    if (!inventory.length) return;
+    const inventoryJson = JSON.stringify(inventory, null, 2);
+    const systemPrompt = `You are a world-class demand forecasting and planning AI. For each product in the provided inventory, analyze real-world factors (tariffs, stock picker advice, macroeconomic trends, supply chain news, etc.) and provide a demand forecast. For each product, return: id, name, currentMonth (units), nextMonth (units), next3Months (units), trend (Increasing/Decreasing/Stable), confidence (0-100), and keyFactors (array of 2-4 real-world factors). Do not randomize; base your answer on the product and its context. Output a JSON array, no markdown or code block.`;
+    const userPrompt = `Here is the inventory data as JSON:\n${inventoryJson}\n\nFor each product, provide a demand forecast as described above. Output a JSON array only.`;
+    const response = await fetch("/api/perplexity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "sonar-pro",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
+    if (!response.ok) throw new Error("Failed to fetch forecast");
+    const result = await response.json();
+    let forecastArr: any[] = [];
+    if (result?.choices?.[0]?.message?.content) {
+      const contentString = result.choices[0].message.content;
+      try {
+        forecastArr = JSON.parse(contentString);
+        if (!Array.isArray(forecastArr)) throw new Error();
+      } catch {
+        // Try to extract first valid JSON array
+        const jsonMatch = contentString.match(/\[.*?\]/);
+        if (jsonMatch?.[0]) {
+          forecastArr = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("Invalid forecast JSON");
+        }
+      }
+    }
+    setForecast(forecastArr);
+    setDemandForecast(forecastArr);
+    lastInventoryRef.current = JSON.stringify(inventory);
+  };
+
+  // Only re-fetch if inventory changes
+  useEffect(() => {
+    if (JSON.stringify(inventory) !== lastInventoryRef.current) {
+      setForecast([]);
+      setDemandForecast([]);
+    }
+    // eslint-disable-next-line
+  }, [inventory]);
+
   const generateForecast = () => {
-    const result = inventory.map((item) => ({
-      id: item.id,
-      name: item.name,
-      currentMonth: Math.floor(Math.random() * 100) + 10,
-      nextMonth: Math.floor(Math.random() * 100) + 10,
-      next3Months: Math.floor(Math.random() * 300) + 30,
-      trend: ["Increasing", "Decreasing", "Stable"][
-        Math.floor(Math.random() * 3)
-      ],
-      confidence: Math.floor(Math.random() * 30) + 70,
-      keyFactors: ["Seasonality", "Market trend", "Promotion"],
-    }));
-    setForecast(result);
-    setDemandForecast(result);
+    if (!forecast.length) fetchForecast();
   };
 
   const products =
