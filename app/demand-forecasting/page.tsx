@@ -140,77 +140,93 @@ export default function DemandForecastingPage() {
 
       <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-gradient-to-r from-gray-50 to-slate-50">
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    PRODUCT
-                  </th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    CURRENT MONTH
-                  </th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    NEXT MONTH
-                  </th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    NEXT 3 MONTHS
-                  </th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    TREND
-                  </th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-700">
-                    KEY FACTORS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="border-b hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-colors"
-                  >
-                    <td className="py-4 px-4">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {product.id}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {product.name}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 font-medium text-gray-900">
-                      {product.currentMonth} units
-                    </td>
-                    <td className="py-4 px-4 font-medium text-gray-900">
-                      {product.nextMonth} units
-                    </td>
-                    <td className="py-4 px-4 font-medium text-gray-900">
-                      {product.next3Months} units
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge className={getTrendColor(product.trend)}>
-                        {product.trend}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm text-gray-600">
-                        {product.keyFactors && product.keyFactors.length > 0 ? (
-                          product.keyFactors.map((factor, index) => (
-                            <div key={index}>• {factor}</div>
-                          ))
-                        ) : (
-                          <div className="italic text-gray-400">
-                            No key factors
-                          </div>
-                        )}
-                      </div>
-                    </td>
+          <div className="overflow-x-auto relative">
+            {forecast.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm z-10">
+                <span className="text-xl font-semibold text-gray-500">
+                  (Click Generate)
+                </span>
+              </div>
+            ) : null}
+            <div
+              className={
+                forecast.length === 0
+                  ? "blur-sm select-none pointer-events-none"
+                  : ""
+              }
+            >
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-gradient-to-r from-gray-50 to-slate-50">
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      PRODUCT
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      CURRENT MONTH
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      NEXT MONTH
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      NEXT 3 MONTHS
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      TREND
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-gray-700">
+                      KEY FACTORS
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <tr
+                      key={product.id}
+                      className="border-b hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-colors"
+                    >
+                      <td className="py-4 px-4">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {product.id}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {product.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 font-medium text-gray-900">
+                        {product.currentMonth} units
+                      </td>
+                      <td className="py-4 px-4 font-medium text-gray-900">
+                        {product.nextMonth} units
+                      </td>
+                      <td className="py-4 px-4 font-medium text-gray-900">
+                        {product.next3Months} units
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge className={getTrendColor(product.trend)}>
+                          {product.trend}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-600">
+                          {product.keyFactors &&
+                          product.keyFactors.length > 0 ? (
+                            product.keyFactors.map((factor, index) => (
+                              <div key={index}>• {factor}</div>
+                            ))
+                          ) : (
+                            <div className="italic text-gray-400">
+                              No key factors
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </CardContent>
       </Card>

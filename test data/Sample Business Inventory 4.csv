@@ -1,0 +1,21 @@
+Product,Category,Supplier,Unit Cost,Stock Level,ABC Class
+The Midnight Library (Hardcover),Books - Fiction,PageTurn Distributors,18.5,80,A
+Atomic Habits (Paperback),Books - Non-Fiction,Knowledge Books Inc.,12.75,150,A
+Where the Crawdads Sing (Paperback),Books - Fiction,PageTurn Distributors,10.99,120,B
+Children's Picture Book - The Magical Tree,Books - Children's,KidLit Adventures,9.25,200,B
+Premium Blend Coffee Beans (1lb),Cafe - Coffee,Artisan Roast Co.,16.5,60,A
+Assorted Herbal Teas (Box of 20),Cafe - Tea,SereneSip Teas,8,100,C
+Croissant - Butter,Cafe - Pastries,MorningBake Goods,3.25,50,C
+Muffin - Blueberry,Cafe - Pastries,MorningBake Goods,2.95,70,C
+Journal - Leather Bound,Stationery - Notebooks,Paperie & Co.,22,90,B
+Fountain Pen - Classic Black,Stationery - Writing,InkWell Supplies,38.75,40,A
+Greeting Cards - Assorted Designs,Stationery - Cards,Artful Notes,4.5,300,B
+Literary Tote Bag,Merchandise - Gifts,BookLover Merch,15,110,B
+Bookstore Mug - Logo,Merchandise - Gifts,BookLover Merch,12.95,75,C
+Sapiens: A Brief History of Humankind,Books - Non-Fiction,Knowledge Books Inc.,14.5,95,A
+Local Author Spotlight Novel,Books - Local Interest,IndiePress Collective,11.5,65,B
+Bookmark - Metal Feather,Stationery - Accessories,Paperie & Co.,6.75,250,C
+Espresso Shot,Cafe - Beverages,Artisan Roast Co.,2.5,N/A,C
+Latte - Medium,Cafe - Beverages,Artisan Roast Co.,4.75,N/A,B
+The Very Hungry Caterpillar,Books - Children's,KidLit Adventures,7.99,180,B
+Poetry Collection - Modern Voices,Books - Poetry,VerseWorks Publishing,13.2,55,B
