@@ -1,7 +1,9 @@
 # SupplySense
 
 ## Our Overview
-SupplySense is a comprehensive inventory management and supply chain optimization platform designed to help businesses efficiently manage their inventory, forecast demand, and analyze costs. The application provides an intuitive interface for tracking inventory, predicting future demand, and optimizing supply chain operations.
+SupplySense is a comprehensive inventory management and supply chain optimization platform designed to help businesses efficiently manage their inventory, forecast demand, and analyze costs. The application provides an intuitive interface for tracking inventory, predicting future demand, and optimizing supply chain operations. We truly believe that the need for such a system powered by real-time insights and analysis is only increasing as regulatory changes in economic policy lead to small businesses having to make major adjustments to their inventories across multiple industries. SupplySense empowers small business owners navigate changing tax laws, tariff poliicies, and major trends, boosting productivity and profitability. 
+
+SupplySense is powered by the Perplexity API in 3 key ways. First, we use Sonar as a personal assistant and analyzer across the website. Second, we also use it to search the internet alongside analyzing the user's inputted inventory to generate recomended actions that the user can take to fix their inventory, and how much they potentially stand to gain based on each action. Third, we also use Sonar to analyze the inventory and forcast potential demand for certain items based on a variety of factors. Overall, SupplySense leverages the Perplexity API to reimagine inventory management for the modern era. 
 
 Perplexity AI Hackathon
 
@@ -50,12 +52,6 @@ pnpm build
 pnpm start
 ```
 
-## Branch Information
-- **main**: Stable production-ready code
-- **Aryan**: Development branch with new features
-- **Kedaar**: Feature branch with HTML parsing, CSV memory integration, and system prompt updates
-- **updates**: Branch for ongoing updates
-- **new**: Branch for new feature development
 
 ## Technologies Used
 - **Next.js 15**: React framework for server-rendered applications
@@ -69,7 +65,7 @@ pnpm start
 - **Zod**: TypeScript-first schema validation
 
 ## License
-Nah
+
 
 ## Contributors
-Vibha, Me, Aryan, Diya
+Vibha, Kedaar, Aryan, Diya
