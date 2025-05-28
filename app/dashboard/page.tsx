@@ -1,116 +1,71 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  DollarSign,
-  TrendingUp,
-  ArrowDown,
-  LoaderCircle,
-} from "lucide-react";
+import { DollarSign, TrendingUp, ArrowDown, LoaderCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useGlobalStore } from "@/lib/store";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
-// Utility to hash inventory data
+// Utility to hash inventory data (for localStorage fallbacks)
 function hashInventory(inventory: any[]): string {
   if (!inventory || inventory.length === 0) return "empty";
   return btoa(
-    inventory.map((item) => `${item.id}:${item.totalLanded}`).join("|")
+    inventory.map((item) => `${item.id}:${item.stockLevel}`).join("|")
   );
 }
 
 export default function DashboardPage() {
-  // 1) pull in your raw inventory array
+  // 1) Pull in raw inventory from your global store
   const globalInventory = useGlobalStore((state) => state.inventory);
 
-  // 2) normalize into numbers + compute totalLanded (for pie chart)
+  // 2) Normalize numeric fields
   const baseInventory = useMemo(() => {
     if (!globalInventory || globalInventory.length === 0) return [];
     return globalInventory.map((p) => ({
-      id:             p.id,
-      name:           p.name,
-      unitCost:       Number(p.unitCost)       || 0,
-      stockLevel:     Number(p.stockLevel)     || 0,    // <-- new
-      shipping:       Number(p.shipping)       || 0,
-      storage:        Number(p.storage)        || 0,
-      carryingCost:   Number(p.carryingCost)   || 0,
-      margin:         Number(p.margin)         || 0,
-      turnover:       Number(p.turnover)       || 0,
-      daysInInventory:Number(p.daysInInventory)|| 0,
-      totalLanded:
-        (Number(p.unitCost)     || 0) +
-        (Number(p.shipping)     || 0) +
-        (Number(p.storage)      || 0) +
-        ((Number(p.unitCost)    || 0) * (Number(p.carryingCost)|| 0)) / 100,
+      ...p,
+      unitCost:   Number(p.unitCost)   || 0,
+      stockLevel: Number(p.stockLevel) || 0,
     }));
   }, [globalInventory]);
 
-  // 3) old costOverview stays for the pie‐chart & margins
-  const costOverview = useMemo(() => {
-    const products = baseInventory;
-    if (!products.length) return null;
+  // 3) Group by category and compute each category’s dollar investment
+  const costByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    baseInventory.forEach((p) => {
+      const cat = p.category || "Uncategorized";
+      const cost = p.unitCost * p.stockLevel;
+      map[cat] = (map[cat] || 0) + cost;
+    });
+    return map;
+  }, [baseInventory]);
 
-    const totalCost = products.reduce((sum, p) => sum + p.totalLanded, 0);
-    const avgMargin =
-      products.reduce((sum, p) => sum + p.margin, 0) / products.length;
-
-    const pieData = [
-      {
-        name:  "Unit Cost",
-        value: products.reduce((sum, p) => sum + p.unitCost, 0),
-        color: "#6366f1",
-      },
-      {
-        name:  "Shipping",
-        value: products.reduce((sum, p) => sum + p.shipping, 0),
-        color: "#38bdf8",
-      },
-      {
-        name:  "Storage",
-        value: products.reduce((sum, p) => sum + p.storage, 0),
-        color: "#fbbf24",
-      },
-      {
-        name:  "Carrying Cost",
-        value: products.reduce(
-          (sum, p) => sum + (p.unitCost * p.carryingCost) / 100,
-          0
-        ),
-        color: "#10b981",
-      },
+  // 4) Build and sort pieData descending by value
+  const pieData = useMemo(() => {
+    const palette = [
+      "#6366f1", "#38bdf8", "#fbbf24", "#10b981",
+      "#ef4444", "#8b5cf6", "#ec4899", "#f97316",
     ];
-
-    return { totalCost, avgMargin, pieData };
-  }, [baseInventory]);
-
-  // 4) NEW: manual total = unitCost * stockLevel
-  const manualTotalCost = useMemo(() => {
-    return baseInventory.reduce(
-      (sum, p) => sum + p.unitCost * p.stockLevel,
-      0
+    const entries = Object.entries(costByCategory).map(
+      ([name, value], i) => ({
+        name,
+        value,
+        color: palette[i % palette.length],
+      })
     );
-  }, [baseInventory]);
+    return entries.sort((a, b) => b.value - a.value);
+  }, [costByCategory]);
 
-  // 5) (Optional) AI & fallback logic unchanged...
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload?.length) {
-      const d = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border rounded shadow">
-          <p className="font-medium">{d.name}</p>
-          <p className="text-sm">
-            ${d.value.toLocaleString()} ({d.percentage}%)
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  // 5) Manual overall total inventory cost (unitCost × stockLevel)
+  const manualTotalCost = useMemo(
+    () => baseInventory.reduce((sum, p) => sum + p.unitCost * p.stockLevel, 0),
+    [baseInventory]
+  );
 
+  // 6) Random fallback % changes & avg-margin
   const [randomFallbacks, setRandomFallbacks] = useState({
     percentChange: 0,
-    percentTarget: 0,
     avgMargin:     0,
+    percentTarget: 0,
   });
   useEffect(() => {
     if (!globalInventory?.length) return;
@@ -129,78 +84,270 @@ export default function DashboardPage() {
     }
   }, [globalInventory]);
 
-  // 6) spinner state (if you ever want to show one)
+  // 7) AI-driven metrics for “Immediate Actions” & “Cost Savings”
+  const [aiMetrics, setAiMetrics] = useState<{
+    totalCost:        number | null;
+    percentChange:    number | null;
+    avgMargin:        number | null;
+    costSavings:      string[];
+    immediateActions: string[];
+  }>({
+    totalCost:        null,
+    percentChange:    null,
+    avgMargin:        null,
+    costSavings:      [],
+    immediateActions: [],
+  });
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  useEffect(() => {
+    async function fetchAIMetrics() {
+      if (!globalInventory?.length) return;
+      setIsLoadingAI(true);
+      try {
+        const invJson = JSON.stringify(globalInventory, null, 2);
+        const systemPrompt = `You are an expert in inventory & cost optimization. Given this inventory, calculate:
+1) total inventory cost
+2) percent change from last month
+3) average margin
+4) 3–5 cost-saving opportunities
+5) 3 immediate actions
+Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immediateActions.`;
+        const userPrompt = `Inventory:\n${invJson}`;
+        const res = await fetch("/api/perplexity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model:    "sonar-pro",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user",   content: userPrompt },
+            ],
+          }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const result = await res.json();
+        const content = result.choices?.[0]?.message?.content;
+        let aiObj = null;
+        if (content) {
+          try {
+            aiObj = JSON.parse(content);
+          } catch {
+            const m = content.match(/\{[\s\S]*\}/);
+            if (m) aiObj = JSON.parse(m[0]);
+          }
+        }
+        if (aiObj) {
+          setAiMetrics({
+            totalCost:        aiObj.totalCost,
+            percentChange:    aiObj.percentChange,
+            avgMargin:        aiObj.avgMargin,
+            costSavings:      aiObj.costSavings,
+            immediateActions: aiObj.immediateActions,
+          });
+        }
+      } catch {
+        // fallback
+      } finally {
+        setIsLoadingAI(false);
+      }
+    }
+    fetchAIMetrics();
+  }, [globalInventory]);
+
+  // Pie‐chart tooltip showing both dollars and %
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+      const d = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border rounded shadow">
+          <p className="font-medium">{d.name}</p>
+          <p className="text-sm">
+            ${d.value.toLocaleString()} (
+            {((d.value / manualTotalCost) * 100).toFixed(1)}%)
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-8 pr-20">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border-blue-100 border">
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
-          Cost Overview
-        </h1>
-        <p className="text-gray-600">
-          Monitor your inventory costs and performance metrics
-        </p>
-      </div>
-
-      {/* KPI Cards */}
+      {/* — KPI CARDS — */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Total Inventory Cost */}
         <Card className="bg-white/80 border-blue-100 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Total Inventory Cost
-                </p>
-                <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-                  {/* ALWAYS show manualTotalCost */}
-                  ${manualTotalCost.toLocaleString()}
-                </p>
-                <div className="flex items-center mt-1 text-green-500">
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                  <span className="text-sm font-medium">
-                    {/* keep your fallback or AI percent here */}
-                    {`${randomFallbacks.percentChange.toFixed(1)}% from last month`}
-                  </span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-white" />
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">
+                Total Inventory Cost
+              </p>
+              <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                ${manualTotalCost.toLocaleString()}
+              </p>
+              <div className="flex items-center mt-1 text-green-500">
+                <ArrowDown className="h-4 w-4 mr-1" />
+                <span className="text-sm font-medium">
+                  {aiMetrics.percentChange != null
+                    ? `${aiMetrics.percentChange}% from last month`
+                    : `${randomFallbacks.percentChange.toFixed(1)}% from last month`}
+                </span>
               </div>
             </div>
+            <DollarSign className="h-12 w-12 text-white bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl" />
           </CardContent>
         </Card>
 
-        {/* Average Margin (unchanged) */}
+        {/* Average Margin */}
         <Card className="bg-white/80 border-green-100 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Average Margin
-                </p>
-                <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">
-                  {`${randomFallbacks.avgMargin.toFixed(1)}%`}
-                </p>
-                <div className="flex items-center mt-1 text-red-500">
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                  <span className="text-sm font-medium">
-                    {`${randomFallbacks.percentTarget.toFixed(1)}% from target`}
-                  </span>
-                </div>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-white" />
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">
+                Average Margin
+              </p>
+              <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">
+                {aiMetrics.avgMargin != null
+                  ? `${aiMetrics.avgMargin}%`
+                  : `${randomFallbacks.avgMargin.toFixed(1)}%`}
+              </p>
+              <div className="flex items-center mt-1 text-red-500">
+                <ArrowDown className="h-4 w-4 mr-1" />
+                <span className="text-sm font-medium">
+                  {`${randomFallbacks.percentTarget.toFixed(1)}% from target`}
+                </span>
               </div>
             </div>
+            <TrendingUp className="h-12 w-12 text-white bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-xl" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Pie Chart & Breakdown */}
-      {}
+      {/* — Cost Breakdown by Category — */}
+      <Card className="shadow-lg border-0 bg-white">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">
+          <CardTitle className="text-xl text-gray-900">
+            Cost Breakdown by Category
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            {/* Pie Chart */}
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    paddingAngle={2}
+                  >
+                    {pieData.map((slice, i) => (
+                      <Cell key={i} fill={slice.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legend / Breakdown List */}
+            <div className="space-y-4">
+              {pieData.map((slice, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 border"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: slice.color }}
+                    />
+                    <span className="font-medium text-gray-900">
+                      {slice.name}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-gray-900">
+                      ${slice.value.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      ({((slice.value / manualTotalCost) * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* — Action Items — */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Immediate Actions */}
+        <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-orange-100 to-red-100 border-b border-orange-200">
+            <CardTitle className="text-lg text-orange-800">
+              Immediate Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {isLoadingAI ? (
+              <LoaderCircle className="animate-spin mx-auto" />
+            ) : aiMetrics.immediateActions.length > 0 ? (
+              aiMetrics.immediateActions.map((action, idx) => (
+                <div
+                  key={idx}
+                  className="text-sm bg-white p-3 rounded-lg border border-orange-200"
+                >
+                  <span className="font-medium text-orange-800">
+                    • {action}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm bg-white p-3 rounded-lg border border-orange-200">
+                <span className="font-medium text-orange-800">
+                  No urgent actions found.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cost Savings Opportunities */}
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-green-100 to-emerald-100 border-b border-green-200">
+            <CardTitle className="text-lg text-green-800">
+              Cost Savings Opportunities
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {isLoadingAI ? (
+              <LoaderCircle className="animate-spin mx-auto" />
+            ) : aiMetrics.costSavings.length > 0 ? (
+              aiMetrics.costSavings.map((tip, idx) => (
+                <div
+                  key={idx}
+                  className="text-sm bg-white p-3 rounded-lg border border-green-200"
+                >
+                  <span className="font-medium text-green-800">• {tip}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm bg-white p-3 rounded-lg border border-green-200">
+                <span className="font-medium text-green-800">
+                  No cost-saving tips found.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
