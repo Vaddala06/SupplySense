@@ -1,14 +1,11 @@
 "use client";
 
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, ArrowDown, LoaderCircle } from "lucide-react";
 import { DollarSign, TrendingUp, ArrowDown, LoaderCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useGlobalStore } from "@/lib/store";
 import { useMemo, useState, useEffect } from "react";
 
-// Utility to hash inventory data (for localStorage fallbacks)
 // Utility to hash inventory data (for localStorage fallbacks)
 function hashInventory(inventory: any[]): string {
   if (!inventory || inventory.length === 0) return "empty";
@@ -16,7 +13,6 @@ function hashInventory(inventory: any[]): string {
     inventory.map((item) => `${item.id}:${item.stockLevel}`).join("|")
   );
 }
-
 
 export default function DashboardPage() {
   // 1) Pull in raw inventory from your global store
@@ -27,12 +23,12 @@ export default function DashboardPage() {
     if (!globalInventory || globalInventory.length === 0) return [];
     return globalInventory.map((p) => ({
       ...p,
-      unitCost:   Number(p.unitCost)   || 0,
+      unitCost: Number(p.unitCost) || 0,
       stockLevel: Number(p.stockLevel) || 0,
     }));
   }, [globalInventory]);
 
-  // 3) Group by category and compute each category’s dollar investment
+  // 3) Group by category and compute each category's dollar investment
   const costByCategory = useMemo(() => {
     const map: Record<string, number> = {};
     baseInventory.forEach((p) => {
@@ -46,16 +42,20 @@ export default function DashboardPage() {
   // 4) Build and sort pieData descending by value
   const pieData = useMemo(() => {
     const palette = [
-      "#6366f1", "#38bdf8", "#fbbf24", "#10b981",
-      "#ef4444", "#8b5cf6", "#ec4899", "#f97316",
+      "#6366f1",
+      "#38bdf8",
+      "#fbbf24",
+      "#10b981",
+      "#ef4444",
+      "#8b5cf6",
+      "#ec4899",
+      "#f97316",
     ];
-    const entries = Object.entries(costByCategory).map(
-      ([name, value], i) => ({
-        name,
-        value,
-        color: palette[i % palette.length],
-      })
-    );
+    const entries = Object.entries(costByCategory).map(([name, value], i) => ({
+      name,
+      value,
+      color: palette[i % palette.length],
+    }));
     return entries.sort((a, b) => b.value - a.value);
   }, [costByCategory]);
 
@@ -68,7 +68,7 @@ export default function DashboardPage() {
   // 6) Random fallback % changes & avg-margin
   const [randomFallbacks, setRandomFallbacks] = useState({
     percentChange: 0,
-    avgMargin:     0,
+    avgMargin: 0,
     percentTarget: 0,
   });
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     } else {
       const fb = {
         percentChange: -Math.random() * 3 - 0.5,
-        avgMargin:     20 + Math.random() * 40,
+        avgMargin: 20 + Math.random() * 40,
         percentTarget: Math.random() * 2 + 0.5,
       };
       setRandomFallbacks(fb);
@@ -88,18 +88,18 @@ export default function DashboardPage() {
     }
   }, [globalInventory]);
 
-  // 7) AI-driven metrics for “Immediate Actions” & “Cost Savings”
+  // 7) AI-driven metrics for "Immediate Actions" & "Cost Savings"
   const [aiMetrics, setAiMetrics] = useState<{
-    totalCost:        number | null;
-    percentChange:    number | null;
-    avgMargin:        number | null;
-    costSavings:      string[];
+    totalCost: number | null;
+    percentChange: number | null;
+    avgMargin: number | null;
+    costSavings: string[];
     immediateActions: string[];
   }>({
-    totalCost:        null,
-    percentChange:    null,
-    avgMargin:        null,
-    costSavings:      [],
+    totalCost: null,
+    percentChange: null,
+    avgMargin: null,
+    costSavings: [],
     immediateActions: [],
   });
   const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -122,10 +122,10 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model:    "sonar-pro",
+            model: "sonar-pro",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user",   content: userPrompt },
+              { role: "user", content: userPrompt },
             ],
           }),
         });
@@ -143,10 +143,10 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
         }
         if (aiObj) {
           setAiMetrics({
-            totalCost:        aiObj.totalCost,
-            percentChange:    aiObj.percentChange,
-            avgMargin:        aiObj.avgMargin,
-            costSavings:      aiObj.costSavings,
+            totalCost: aiObj.totalCost,
+            percentChange: aiObj.percentChange,
+            avgMargin: aiObj.avgMargin,
+            costSavings: aiObj.costSavings,
             immediateActions: aiObj.immediateActions,
           });
         }
@@ -159,7 +159,7 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
     fetchAIMetrics();
   }, [globalInventory]);
 
-  // Pie‐chart tooltip showing both dollars and %
+  // Pie-chart tooltip showing both dollars and %
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload?.length) {
       const d = payload[0].payload;
@@ -195,7 +195,9 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
                 <span className="text-sm font-medium">
                   {aiMetrics.percentChange != null
                     ? `${aiMetrics.percentChange}% from last month`
-                    : `${randomFallbacks.percentChange.toFixed(1)}% from last month`}
+                    : `${randomFallbacks.percentChange.toFixed(
+                        1
+                      )}% from last month`}
                 </span>
               </div>
             </div>
@@ -355,6 +357,3 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
     </div>
   );
 }
-
-
-
