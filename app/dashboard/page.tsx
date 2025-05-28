@@ -179,9 +179,9 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
   return (
     <div className="space-y-8 pr-20">
       {/* — KPI CARDS — */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex justify-center">
         {/* Total Inventory Cost */}
-        <Card className="bg-white/80 border-blue-100 shadow-lg">
+        <Card className="bg-white/80 border-blue-100 shadow-lg w-[400px]">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">
@@ -190,41 +190,8 @@ Return JSON with keys: totalCost, percentChange, avgMargin, costSavings, immedia
               <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
                 ${manualTotalCost.toLocaleString()}
               </p>
-              <div className="flex items-center mt-1 text-green-500">
-                <ArrowDown className="h-4 w-4 mr-1" />
-                <span className="text-sm font-medium">
-                  {aiMetrics.percentChange != null
-                    ? `${aiMetrics.percentChange}% from last month`
-                    : `${randomFallbacks.percentChange.toFixed(
-                        1
-                      )}% from last month`}
-                </span>
-              </div>
             </div>
             <DollarSign className="h-12 w-12 text-white bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl" />
-          </CardContent>
-        </Card>
-
-        {/* Average Margin */}
-        <Card className="bg-white/80 border-green-100 shadow-lg">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                Average Margin
-              </p>
-              <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">
-                {aiMetrics.avgMargin != null
-                  ? `${aiMetrics.avgMargin}%`
-                  : `${randomFallbacks.avgMargin.toFixed(1)}%`}
-              </p>
-              <div className="flex items-center mt-1 text-red-500">
-                <ArrowDown className="h-4 w-4 mr-1" />
-                <span className="text-sm font-medium">
-                  {`${randomFallbacks.percentTarget.toFixed(1)}% from target`}
-                </span>
-              </div>
-            </div>
-            <TrendingUp className="h-12 w-12 text-white bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-xl" />
           </CardContent>
         </Card>
       </div>
