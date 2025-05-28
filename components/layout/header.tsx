@@ -5,6 +5,7 @@ import { LogOut, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import { useGlobalStore } from "@/lib/store";
 
 const PPLX_API_KEY = "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";
 
@@ -39,6 +40,7 @@ export function Header() {
   >([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inventory = useGlobalStore((state) => state.inventory);
 
   // Always clear chat history on reload
   useEffect(() => {
@@ -69,7 +71,7 @@ export function Header() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const inventoryData = getGlobalInventoryData();
+    const inventoryData = inventory;
     const userMessage = { role: "user" as const, content: input };
     setInput("");
     setLoading(true);

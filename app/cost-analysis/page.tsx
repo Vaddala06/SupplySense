@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useGlobalStore } from "@/lib/store";
 import { ChartContainer } from "@/components/ui/chart";
-import * as Recharts from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 
 // --- TypeScript Interfaces ---
 interface Product {
@@ -163,6 +163,37 @@ export default function CostRecommendationsPage() {
     }
     return [];
   }, [globalInventory]);
+
+  useEffect(() => {
+    // Restore selections and options from localStorage
+    const savedOptions = localStorage.getItem("ss_perplexity_options");
+    const savedSelected = localStorage.getItem("ss_perplexity_selected");
+    if (savedOptions) {
+      try {
+        setPerplexityOptions(JSON.parse(savedOptions));
+      } catch {}
+    }
+    if (savedSelected) {
+      try {
+        setSelectedOptionIds(JSON.parse(savedSelected));
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (perplexityOptions.length > 0) {
+      localStorage.setItem(
+        "ss_perplexity_options",
+        JSON.stringify(perplexityOptions)
+      );
+    }
+    if (selectedOptionIds.length > 0) {
+      localStorage.setItem(
+        "ss_perplexity_selected",
+        JSON.stringify(selectedOptionIds)
+      );
+    }
+  }, [perplexityOptions, selectedOptionIds]);
 
   useEffect(() => {
     if (baseInventory && baseInventory.length > 0) {
@@ -538,6 +569,15 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
         </p>
       </div>
 
+      {/* Info Note about Recommendations and Persistence */}
+      <div className="mb-4">
+        <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-blue-800 text-sm">
+          Cost recommendations and immediate actions are generated based on your
+          latest inventory and demand forecast. Your selected strategies and
+          results are saved and restored automatically.
+        </div>
+      </div>
+
       {/* --- Cost Overview Section --- */}
       {costOverview && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -609,8 +649,8 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
           <Card className="col-span-1 flex flex-col items-center justify-center p-6">
             <div className="w-full h-40">
               <ChartContainer config={{}}>
-                <Recharts.PieChart>
-                  <Recharts.Pie
+                <PieChart width={240} height={160}>
+                  <Pie
                     data={costOverview.pieData}
                     dataKey="value"
                     nameKey="name"
@@ -621,22 +661,54 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
                     label
                   >
                     {costOverview.pieData.map((entry, idx) => (
-                      <Recharts.Cell
+                      <Cell
                         key={`cell-${idx}`}
                         fill={
                           ["#6366f1", "#38bdf8", "#fbbf24", "#10b981"][idx % 4]
                         }
                       />
                     ))}
-                  </Recharts.Pie>
-                  <Recharts.Tooltip />
-                  <Recharts.Legend />
-                </Recharts.PieChart>
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
               </ChartContainer>
             </div>
           </Card>
         </div>
       )}
+
+      {/* Immediate Actions Section (NEW) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-orange-100 to-red-100 border-b border-orange-200">
+            <CardTitle className="text-lg text-orange-800">
+              Immediate Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {perplexityOptions.length > 0 ? (
+              perplexityOptions.slice(0, 3).map((opt, idx) => (
+                <div
+                  key={opt.id}
+                  className="text-sm bg-white p-3 rounded-lg border border-orange-200"
+                >
+                  <span className="font-medium text-orange-800">
+                    • {opt.title}
+                  </span>
+                  <span className="text-gray-600"> {opt.description}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm bg-white p-3 rounded-lg border border-orange-200">
+                <span className="font-medium text-orange-800">
+                  • No immediate actions available
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Potential Optimization Strategies Section */}
       <div>

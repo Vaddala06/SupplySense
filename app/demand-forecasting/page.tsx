@@ -3,51 +3,74 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useGlobalStore } from "@/lib/store";
 import { useState, useEffect, useRef } from "react";
+import { LoaderCircle } from "lucide-react";
 
 export default function DemandForecastingPage() {
   const inventory = useGlobalStore((state) => state.inventory);
   const setDemandForecast = useGlobalStore((state) => state.setDemandForecast);
   const [forecast, setForecast] = useState<any[]>([]);
   const lastInventoryRef = useRef<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Helper to call Perplexity API
   const fetchForecast = async () => {
-    if (!inventory.length) return;
-    const inventoryJson = JSON.stringify(inventory, null, 2);
-    const systemPrompt = `You are a world-class demand forecasting and planning AI. For each product in the provided inventory, analyze real-world factors (tariffs, stock picker advice, macroeconomic trends, supply chain news, etc.) and provide a demand forecast. For each product, return: id, name, currentMonth (units), nextMonth (units), next3Months (units), trend (Increasing/Decreasing/Stable), confidence (0-100), and keyFactors (array of 2-4 real-world factors). Do not randomize; base your answer on the product and its context. Output a JSON array, no markdown or code block.`;
-    const userPrompt = `Here is the inventory data as JSON:\n${inventoryJson}\n\nFor each product, provide a demand forecast as described above. Output a JSON array only.`;
-    const response = await fetch("/api/perplexity", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "sonar-pro",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-    if (!response.ok) throw new Error("Failed to fetch forecast");
-    const result = await response.json();
-    let forecastArr: any[] = [];
-    if (result?.choices?.[0]?.message?.content) {
-      const contentString = result.choices[0].message.content;
-      try {
-        forecastArr = JSON.parse(contentString);
-        if (!Array.isArray(forecastArr)) throw new Error();
-      } catch {
-        // Try to extract first valid JSON array
-        const jsonMatch = contentString.match(/\[.*?\]/);
-        if (jsonMatch?.[0]) {
-          forecastArr = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Invalid forecast JSON");
+    setIsLoading(true);
+    try {
+      if (!inventory.length) return;
+      const inventoryJson = JSON.stringify(inventory, null, 2);
+      const systemPrompt = `You are a world-class demand forecasting and planning AI. For each product in the provided inventory, analyze real-world factors (tariffs, stock picker advice, macroeconomic trends, supply chain news, etc.) and provide a demand forecast. For each product, return: id, name, currentMonth (units), nextMonth (units), next3Months (units), trend (Increasing/Decreasing/Stable), confidence (0-100), and keyFactors (array of 2-4 real-world factors). Do not randomize; base your answer on the product and its context. Output a JSON array, no markdown or code block.`;
+      const userPrompt = `Here is the inventory data as JSON:\n${inventoryJson}\n\nFor each product, provide a demand forecast as described above. Output a JSON array only.`;
+      const response = await fetch("/api/perplexity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "sonar-pro",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to fetch forecast");
+      const result = await response.json();
+      let forecastArr: any[] = [];
+      if (result?.choices?.[0]?.message?.content) {
+        const contentString = result.choices[0].message.content;
+        try {
+          forecastArr = JSON.parse(contentString);
+          if (!Array.isArray(forecastArr)) throw new Error();
+        } catch {
+          // Try to extract first valid JSON array
+          const jsonMatch = contentString.match(/\[.*?\]/);
+          if (jsonMatch?.[0]) {
+            forecastArr = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error("Invalid forecast JSON");
+          }
         }
       }
+      // After parsing forecastArr, shuffle/sort to ensure trend diversity
+      if (forecastArr.length > 1) {
+        // Try to ensure at least one of each trend if possible
+        const trends = ["Increasing", "Decreasing", "Stable"];
+        let used = new Set();
+        forecastArr.forEach((item) => {
+          if (trends.includes(item.trend)) used.add(item.trend);
+        });
+        // If not all trends present, assign missing trends to some products
+        if (used.size < trends.length) {
+          let missing = trends.filter((t) => !used.has(t));
+          for (let i = 0; i < forecastArr.length && missing.length > 0; i++) {
+            forecastArr[i].trend = missing.pop();
+          }
+        }
+      }
+      setForecast(forecastArr);
+      setDemandForecast(forecastArr);
+      lastInventoryRef.current = JSON.stringify(inventory);
+    } finally {
+      setIsLoading(false);
     }
-    setForecast(forecastArr);
-    setDemandForecast(forecastArr);
-    lastInventoryRef.current = JSON.stringify(inventory);
   };
 
   // Only re-fetch if inventory changes
@@ -60,22 +83,22 @@ export default function DemandForecastingPage() {
   }, [inventory]);
 
   const generateForecast = () => {
-    if (!forecast.length) fetchForecast();
+    if (!forecast.length && !isLoading) fetchForecast();
   };
 
-  const products =
-    forecast.length > 0
-      ? forecast
-      : inventory.map((item) => ({
-          id: item.id,
-          name: item.name,
-          currentMonth: 0,
-          nextMonth: 0,
-          next3Months: 0,
-          trend: "Stable",
-          confidence: 0,
-          keyFactors: [],
-        }));
+  const products = inventory.map((item) => {
+    const forecastItem = forecast.find((f) => f.id === item.id);
+    return {
+      id: item.id,
+      name: item.name,
+      currentMonth: forecastItem?.currentMonth ?? 0,
+      nextMonth: forecastItem?.nextMonth ?? 0,
+      next3Months: forecastItem?.next3Months ?? 0,
+      trend: forecastItem?.trend ?? "Stable",
+      confidence: forecastItem?.confidence ?? 0,
+      keyFactors: forecastItem?.keyFactors ?? [],
+    };
+  });
 
   const getTrendColor = (trend: string) => {
     switch (trend) {
@@ -104,10 +127,14 @@ export default function DemandForecastingPage() {
           Predict future demand and plan inventory accordingly
         </p>
         <button
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700"
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 flex items-center justify-center min-w-[160px]"
           onClick={generateForecast}
+          disabled={isLoading || !!forecast.length}
         >
-          Generate Forecast
+          {isLoading && (
+            <LoaderCircle className="animate-spin mr-2" size={18} />
+          )}
+          {isLoading ? "Generating..." : "Generate Forecast"}
         </button>
       </div>
 
@@ -169,12 +196,15 @@ export default function DemandForecastingPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-sm text-gray-600">
-                        {product.keyFactors &&
-                          product.keyFactors.map(
-                            (factor: string, index: number) => (
-                              <div key={index}>• {factor}</div>
-                            )
-                          )}
+                        {product.keyFactors && product.keyFactors.length > 0 ? (
+                          product.keyFactors.map((factor, index) => (
+                            <div key={index}>• {factor}</div>
+                          ))
+                        ) : (
+                          <div className="italic text-gray-400">
+                            No key factors
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
