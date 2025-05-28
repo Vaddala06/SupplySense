@@ -143,9 +143,7 @@ export default function DemandForecastingPage() {
           <div className="overflow-x-auto relative">
             {forecast.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm z-10">
-                <span className="text-xl font-semibold text-gray-500">
-                  (Click Generate)
-                </span>
+                {/* Removed the (Click Generate) text */}
               </div>
             ) : null}
             <div
