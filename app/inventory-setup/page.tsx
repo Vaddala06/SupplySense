@@ -122,6 +122,19 @@ export default function InventorySetupPage() {
         </div>
       </div>
 
+      <div className="flex justify-center mt-4">
+        <Button
+          className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg"
+          onClick={() => {
+            setProducts([]);
+            setInventory([]);
+            localStorage.removeItem("ss_inventory");
+          }}
+        >
+          Clear Inventory
+        </Button>
+      </div>
+
       {/* Products Table */}
       <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
         <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">

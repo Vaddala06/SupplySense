@@ -133,23 +133,18 @@ export default function CostRecommendationsPage() {
   const [apiCitations, setApiCitations] = useState<string[]>([]);
   const [aiMetrics, setAiMetrics] = useState<{
     totalCost: number | null;
-    avgMargin: number | null;
   }>({
     totalCost: null,
-    avgMargin: 42.4, // default to a reasonable estimate
   });
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [dashboardMetrics, setDashboardMetrics] = useState<{
     totalCost: number | null;
-    avgMargin: number | null;
   }>({
     totalCost: null,
-    avgMargin: null,
   });
   const [randomFallbackMargin, setRandomFallbackMargin] = useState(0);
   const [preloadedAIMetrics, setPreloadedAIMetrics] = useState<{
     totalCost: number | null;
-    avgMargin: number | null;
   } | null>(null);
   const [dashboardCost, setDashboardCost] = useState<number | null>(null);
 
@@ -441,7 +436,6 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
           }
           const newMetrics = {
             totalCost: aiObj.totalCost,
-            avgMargin: Number(margin),
           };
           setAiMetrics(newMetrics);
           // Persist by inventory hash
@@ -463,10 +457,8 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
   useEffect(() => {
     // Try to get from localStorage (simulate dashboard storing its metrics)
     const dashCost = localStorage.getItem("ss_dashboard_totalCost");
-    const dashMargin = localStorage.getItem("ss_dashboard_avgMargin");
     setDashboardMetrics({
       totalCost: dashCost ? Number(dashCost) : null,
-      avgMargin: dashMargin ? Number(dashMargin) : null,
     });
   }, []);
 
@@ -475,12 +467,6 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
       localStorage.setItem(
         "ss_costrec_totalCost",
         aiMetrics.totalCost.toString()
-      );
-    }
-    if (typeof aiMetrics.avgMargin === "number") {
-      localStorage.setItem(
-        "ss_costrec_avgMargin",
-        aiMetrics.avgMargin.toString()
       );
     }
   }, [aiMetrics]);
@@ -611,13 +597,7 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
       (sum, p) => sum + (p.totalLanded || 0),
       0
     );
-    const avgMargin =
-      products.reduce((sum, p) => sum + (p.margin || 0), 0) / products.length;
-    const prevAvgMargin =
-      baseInventory.reduce((sum, p) => sum + (p.margin || 0), 0) /
-      (baseInventory.length || 1);
     const costDelta = totalCost - prevTotalCost;
-    const marginDelta = avgMargin - prevAvgMargin;
     // Pie chart data
     const pieData = [
       {
@@ -643,10 +623,7 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
     return {
       totalCost,
       prevTotalCost,
-      avgMargin,
-      prevAvgMargin,
       costDelta,
-      marginDelta,
       pieData,
     };
   }, [optimizedDisplayProducts, baseInventory]);
@@ -744,85 +721,9 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of these stra
       </div>
 
       {/* --- Cost Overview Section --- */}
-      {costOverview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="col-span-1 flex flex-col items-center justify-center p-6">
-            <div className="flex items-center gap-2">
-              <DollarSign className="text-blue-600" />
-              <span className="text-lg font-semibold">
-                Total Inventory Cost
-              </span>
-            </div>
-            <div className="text-3xl font-bold mt-2">
-              {isLoadingAI ? (
-                <LoaderCircle className="inline animate-spin" />
-              ) : aiMetrics.totalCost !== null ? (
-                `$${Number(aiMetrics.totalCost).toLocaleString()}`
-              ) : (
-                `$${costOverview.totalCost.toLocaleString()}`
-              )}
-            </div>
-            <div className={`flex items-center mt-1 text-sm text-green-600`}>
-              {isLoadingAI ? (
-                <LoaderCircle className="inline w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                (() => {
-                  let dashCost = dashboardMetrics.totalCost;
-                  let recCost =
-                    aiMetrics.totalCost !== null
-                      ? aiMetrics.totalCost
-                      : costOverview.totalCost;
-                  // If dashboard cost is lower, adjust it to be slightly higher than recCost
-                  if (dashCost !== null && dashCost < recCost) {
-                    dashCost = recCost * 1.07; // 7% higher
-                  }
-                  if (dashCost !== null && recCost !== null) {
-                    const percent =
-                      ((recCost - dashCost) / (dashCost || 1)) * 100;
-                    return `${
-                      percent < 0
-                        ? percent.toFixed(2)
-                        : "+" + percent.toFixed(2)
-                    }% saved`;
-                  }
-                  return "-2.5% saved";
-                })()
-              )}
-            </div>
-          </Card>
-          <Card className="col-span-1 flex flex-col items-center justify-center p-6">
-            <div className="flex items-center gap-2">
-              <Package className="text-emerald-600" />
-              <span className="text-lg font-semibold">Average Margin</span>
-            </div>
-            <div className="text-3xl font-bold mt-2">
-              {isLoadingAI ? (
-                <LoaderCircle className="inline animate-spin" />
-              ) : aiMetrics.avgMargin !== null ? (
-                `${aiMetrics.avgMargin}%`
-              ) : (
-                `${costOverview.avgMargin.toFixed(2)}%`
-              )}
-            </div>
-            <div className={`flex items-center mt-1 text-sm text-green-600`}>
-              {isLoadingAI ? (
-                <LoaderCircle className="inline w-4 h-4 mr-1 animate-spin" />
-              ) : dashboardMetrics.avgMargin !== null &&
-                aiMetrics.avgMargin !== null ? (
-                (() => {
-                  const percent =
-                    aiMetrics.avgMargin - dashboardMetrics.avgMargin;
-                  return `${percent > 0 ? "+" : ""}${percent.toFixed(
-                    2
-                  )}% from overview`;
-                })()
-              ) : (
-                "0.0% from overview"
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-6 mb-8">
+        {/* Total Inventory Cost card removed */}
+      </div>
 
       {/* Potential Optimization Strategies Section */}
       <div>
